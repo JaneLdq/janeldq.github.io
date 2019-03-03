@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Node," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="在Node中通过JavaScript使用内存时会发现只能使用部分内存（64位系统下约为1.4GB，32位系统性约为0.7GB）。这是因为Node基于V8构建，所以Node中JavaScript对象的分配都是通过V8自己的方式进行分配和管理的。 V8的对象分配在V8中，所有的JavaScript对象都通过堆进行分配。如果已申请的堆空间内存不够分配，就继续申请堆内存直到堆的大小超过V8的限制为止。">
+<meta name="keywords" content="Node">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node学习（五）- 内存控制 - V8的垃圾回收与内存机制">
+<meta property="og:url" content="http://liaodanqi.me/2017/03/11/nodejs-5/index.html">
+<meta property="og:site_name" content="Jane">
+<meta property="og:description" content="在Node中通过JavaScript使用内存时会发现只能使用部分内存（64位系统下约为1.4GB，32位系统性约为0.7GB）。这是因为Node基于V8构建，所以Node中JavaScript对象的分配都是通过V8自己的方式进行分配和管理的。 V8的对象分配在V8中，所有的JavaScript对象都通过堆进行分配。如果已申请的堆空间内存不够分配，就继续申请堆内存直到堆的大小超过V8的限制为止。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="http://o8bxo46sq.bkt.clouddn.com/v8_heap_memory.png">
+<meta property="og:image" content="http://o8bxo46sq.bkt.clouddn.com/v8_heap_memory_scavenge.png">
+<meta property="og:image" content="http://o8bxo46sq.bkt.clouddn.com/Cheney.png">
+<meta property="og:image" content="http://o8bxo46sq.bkt.clouddn.com/incremental_marking.png">
+<meta property="og:updated_time" content="2018-12-16T11:45:31.334Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Node学习（五）- 内存控制 - V8的垃圾回收与内存机制">
+<meta name="twitter:description" content="在Node中通过JavaScript使用内存时会发现只能使用部分内存（64位系统下约为1.4GB，32位系统性约为0.7GB）。这是因为Node基于V8构建，所以Node中JavaScript对象的分配都是通过V8自己的方式进行分配和管理的。 V8的对象分配在V8中，所有的JavaScript对象都通过堆进行分配。如果已申请的堆空间内存不够分配，就继续申请堆内存直到堆的大小超过V8的限制为止。">
+<meta name="twitter:image" content="http://o8bxo46sq.bkt.clouddn.com/v8_heap_memory.png">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://liaodanqi.me/2017/03/11/nodejs-5/"/>
+
+
+
+
+
+  <title>Node学习（五）- 内存控制 - V8的垃圾回收与内存机制 | Jane</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Jane</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">Learn & Live</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://liaodanqi.me/2017/03/11/nodejs-5/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jane Liao">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/uploads/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jane">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Node学习（五）- 内存控制 - V8的垃圾回收与内存机制</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-11T16:31:52+08:00">
+                2017-03-11
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/技术笔记/" itemprop="url" rel="index">
+                    <span itemprop="name">技术笔记</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>在Node中通过JavaScript使用内存时会发现只能使用部分内存（64位系统下约为1.4GB，32位系统性约为0.7GB）。这是因为Node基于V8构建，所以Node中JavaScript对象的分配都是通过V8自己的方式进行分配和管理的。</p>
+<h2 id="V8的对象分配"><a href="#V8的对象分配" class="headerlink" title="V8的对象分配"></a>V8的对象分配</h2><p>在V8中，所有的JavaScript对象都通过堆进行分配。如果已申请的堆空间内存不够分配，就继续申请堆内存直到堆的大小超过V8的限制为止。</p>
+<a id="more"></a>
+<p>那么，为什么V8要限制堆的大小呢？<br>表层原因为V8最初为浏览器设计，不太可能遇到用大量内存的场景，对于网页来说V8的限制值已经足够。深层原因则是<strong>V8的垃圾回收机制的限制</strong>。<br>按官方说法，以1.5GB的垃圾回收堆内存为例，V8做一次小的垃圾回收需要50毫秒以上，做一次非增量式垃圾回收要1秒以上。这是垃圾回收引起JavaScript线程暂停执行的时间，在这种情况下应用的性能和响应能力都会直线下降。</p>
+<p>不过，V8提供了让用户来调整内存限制的大小的入口，通过修改以下Node启动参数，这两个参数的意思稍后会介绍：</p>
+<pre><code>--max-old-space-size // 单位为MB
+--max-new-space-size // 单位为KB
+</code></pre><h2 id="V8的垃圾回收机制"><a href="#V8的垃圾回收机制" class="headerlink" title="V8的垃圾回收机制"></a>V8的垃圾回收机制</h2><p>V8的垃圾回收策略基于<strong>分代式垃圾回收机制</strong>：根据对象生命周期（存活时间）的长短进行不同的分代，针对不同的分代采取不同的垃圾回收算法。</p>
+<p>在V8中，主要将内存分为新生代和老生代：</p>
+<ul>
+<li>新生代：存活时间短，可以通过–max-new-space-size设置最大值（64位系统默认32MB，32位默认16MB）</li>
+<li>老生代：存活时间长，常驻内存，可以通过–max-old-space-size设置最大值（64位系统默认1400MB，32位默认700MB）</li>
+</ul>
+<p>V8堆内存示意图如下所示<br><img src="http://o8bxo46sq.bkt.clouddn.com/v8_heap_memory.png" alt="V8堆内存示意图"></p>
+<h3 id="Scavenge算法"><a href="#Scavenge算法" class="headerlink" title="Scavenge算法"></a>Scavenge算法</h3><p>在分代的基础上，新生代中的对象主要通过Scavenge算法进行垃圾回收。Scavenge算法的具体实现中，采用的Cheney算法。</p>
+<p>Cheney算法将堆内存一分为二，每一部分成为semispace。这两个semispace，只有一个处于使用中，称为From空间；另一个处于闲置状态，称为To空间。<br><img src="http://o8bxo46sq.bkt.clouddn.com/v8_heap_memory_scavenge.png" alt="Scavenge堆空间示意图"></p>
+<ul>
+<li>我们分配对象时，先在From空间进行分配</li>
+<li>当垃圾回收时，检查From空间中的存活对象，并将其复制到To空间中，非存活对象占用空间将被释放</li>
+<li>复制完成后，From空间与To空间角色互换<br><img src="http://o8bxo46sq.bkt.clouddn.com/Cheney.png" alt="Cheney算法流程图"></li>
+</ul>
+<p>Scavenge算法的缺点：只能使用堆内存的一半。但对于生命周期短的对象而言，存活对象总是只占所有对象的少部分，所以时间效率表现优异（以空间换时间，但也因此无法大规模应用到所有的垃圾回收场景中）。</p>
+<p><strong>晋升</strong>：当一个对象被多次复制还存活，则被认为是长生命周期对象——将从新生代中移动到老生代中。这个过程被称为晋升。<br>对象的晋升条件主要有两个：</p>
+<ul>
+<li>是否经历过Scavenge回收（V8在对象从From空间挪往To空间时会检查它的内存地址来判断这个对象是否已经历过一次Scavenge回收，如果有，那么它将晋升）</li>
+<li>To空间的内存占比是否超过限制（25%，如果占比过高会影响后续内存分配）</li>
+</ul>
+<h3 id="Mark-Sweep-amp-Mark-Compact"><a href="#Mark-Sweep-amp-Mark-Compact" class="headerlink" title="Mark-Sweep &amp; Mark-Compact"></a>Mark-Sweep &amp; Mark-Compact</h3><p>对于老生代对象，如果采用Scavenge算法会有两个问题</p>
+<ul>
+<li>存活对象较多，复制存活对象效率低</li>
+<li>浪费一般空间<br>因此，V8中针对老生代对象，采用Mark-Sweep和Mark-Compact结合的方式</li>
+</ul>
+<h4 id="Mark-Sweep"><a href="#Mark-Sweep" class="headerlink" title="Mark-Sweep"></a>Mark-Sweep</h4><p>分为标记和清楚两个阶段：</p>
+<ul>
+<li>标记阶段：遍历堆中所有对象，并标记活着的对象</li>
+<li>清楚：只清楚没有被标记的对象</li>
+</ul>
+<p>Mark-Sweep的缺点：在一次清楚后，内存空间不连续，遇到大对象碎片空间无法完成此次分配，会提前触发垃圾回收，而这次回收本是不必要的。</p>
+<h4 id="Mark-Compact"><a href="#Mark-Compact" class="headerlink" title="Mark-Compact"></a>Mark-Compact</h4><p>为了解决Mark-Sweep的碎片问题而被提出。<br>Mark-Compact由Mark-Sweep演变而来，对象在标记死亡后，整理过程中将活着的对象往一端移动，移动完成后，直接清理掉边界外的内存。</p>
+<p>Mark-Sweep和Mark-Compact在V8中是结合使用的，由于Mark-Compact需要移动对象，所以它的执行速度不可能很快。所以V8主要使用Mark-Sweep，在空间不足以对从新生代中晋升过来的对象进行分配时才使用Mark-Compact。</p>
+<h4 id="Incremental-Marking（增量标记）"><a href="#Incremental-Marking（增量标记）" class="headerlink" title="Incremental Marking（增量标记）"></a>Incremental Marking（增量标记）</h4><p>为了避免出现JavaScript应用逻辑与垃圾回收器看到的不一致的情况，垃圾回收的3种基本算法都需要将应用逻辑暂停下来，待执行完垃圾回收后再恢复执行，这种行为被称为“全停顿”（stop-the-world）<br>为了降低全堆垃圾回收带来的停顿时间，将标记动作改为<strong>增量标记</strong>，也就是拆为“步进”，与应用逻辑交替执行直到标记阶段完成。</p>
+<p><img src="http://o8bxo46sq.bkt.clouddn.com/incremental_marking.png" alt="增量标记"><br>V8在经过增量标记改进后，垃圾回收的最大停顿时间可以减少到原本的1/6左右</p>
+<h4 id="lazy-sweeping（延迟清理）"><a href="#lazy-sweeping（延迟清理）" class="headerlink" title="lazy sweeping（延迟清理）"></a>lazy sweeping（延迟清理）</h4><p>增量标记完成后，延迟清理开始。此时所有对象存活状态都已被标记，堆准确知道可以回收多少内存，然而此时不必一次全部回收死亡对象，可以采用延迟清理的处理手段，垃圾回收器根据需要来选择回收部分内存，直到全部垃圾对象回收完毕，整个增量标记-延期清理的周期结束，重新开始标记。</p>
+<h2 id="其他参考链接"><a href="#其他参考链接" class="headerlink" title="其他参考链接"></a>其他参考链接</h2><p><a href="http://alinode.aliyun.com/blog/37" target="_blank" rel="noopener">解读 V8 GC Log（一）: Node.js 应用背景与 GC 基础知识</a><br><a href="http://alinode.aliyun.com/blog/38" target="_blank" rel="noopener">解读 V8 GC Log（二）: Node.js 应用背景与 GC 基础知识</a></p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Node/" rel="tag"># Node</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/02/28/nodejs-4/" rel="next" title="Node学习（四）- 异步编程的解决方案（3）">
+                <i class="fa fa-chevron-left"></i> Node学习（四）- 异步编程的解决方案（3）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/03/12/nodejs-6/" rel="prev" title="Node学习（六）- 内存控制（二）">
+                Node学习（六）- 内存控制（二） <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/uploads/avatar.jpg"
+                alt="Jane Liao" />
+            
+              <p class="site-author-name" itemprop="name">Jane Liao</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">55</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">6</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/JaneLdq" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:janeldq95@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-block">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-link"></i>
+                胖又萌
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <a href="https://kasswang.cn/" title="卡斯奈" target="_blank">卡斯奈</a>
+                  </li>
+                
+                  <li class="links-of-blogroll-item">
+                    <a href="http://1016990109.github.io/" title="七秒悲伤" target="_blank">七秒悲伤</a>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#V8的对象分配"><span class="nav-number">1.</span> <span class="nav-text">V8的对象分配</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#V8的垃圾回收机制"><span class="nav-number">2.</span> <span class="nav-text">V8的垃圾回收机制</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Scavenge算法"><span class="nav-number">2.1.</span> <span class="nav-text">Scavenge算法</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Mark-Sweep-amp-Mark-Compact"><span class="nav-number">2.2.</span> <span class="nav-text">Mark-Sweep &amp; Mark-Compact</span></a><ol class="nav-child"><li class="nav-item nav-level-4"><a class="nav-link" href="#Mark-Sweep"><span class="nav-number">2.2.1.</span> <span class="nav-text">Mark-Sweep</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Mark-Compact"><span class="nav-number">2.2.2.</span> <span class="nav-text">Mark-Compact</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#Incremental-Marking（增量标记）"><span class="nav-number">2.2.3.</span> <span class="nav-text">Incremental Marking（增量标记）</span></a></li><li class="nav-item nav-level-4"><a class="nav-link" href="#lazy-sweeping（延迟清理）"><span class="nav-number">2.2.4.</span> <span class="nav-text">lazy sweeping（延迟清理）</span></a></li></ol></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#其他参考链接"><span class="nav-number">3.</span> <span class="nav-text">其他参考链接</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2015 &mdash; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Jane Liao</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>

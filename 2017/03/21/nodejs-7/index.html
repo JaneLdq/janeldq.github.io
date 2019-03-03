@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="Node," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="毕设中遇到了错误处理和参数检查相关的问题，一直以来这一块都不甚清楚，上网找到了一篇文章，介绍Node.js中处理错误的最佳实践，开篇提出的问题无比吻合我目前的疑惑。 英文原文：Error Handling in Node.js中文译文：[译] NodeJS 错误处理最佳实践 以上是原文和译文，在这里是为了加深自身记忆摘取一些重点。">
+<meta name="keywords" content="Node">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Node学习（七）- Node中的错误处理">
+<meta property="og:url" content="http://liaodanqi.me/2017/03/21/nodejs-7/index.html">
+<meta property="og:site_name" content="Jane">
+<meta property="og:description" content="毕设中遇到了错误处理和参数检查相关的问题，一直以来这一块都不甚清楚，上网找到了一篇文章，介绍Node.js中处理错误的最佳实践，开篇提出的问题无比吻合我目前的疑惑。 英文原文：Error Handling in Node.js中文译文：[译] NodeJS 错误处理最佳实践 以上是原文和译文，在这里是为了加深自身记忆摘取一些重点。">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:updated_time" content="2018-12-16T11:45:31.334Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="Node学习（七）- Node中的错误处理">
+<meta name="twitter:description" content="毕设中遇到了错误处理和参数检查相关的问题，一直以来这一块都不甚清楚，上网找到了一篇文章，介绍Node.js中处理错误的最佳实践，开篇提出的问题无比吻合我目前的疑惑。 英文原文：Error Handling in Node.js中文译文：[译] NodeJS 错误处理最佳实践 以上是原文和译文，在这里是为了加深自身记忆摘取一些重点。">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://liaodanqi.me/2017/03/21/nodejs-7/"/>
+
+
+
+
+
+  <title>Node学习（七）- Node中的错误处理 | Jane</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Jane</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">Learn & Live</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-categories">
+          <a href="/categories/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-th"></i> <br />
+            
+            分类
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://liaodanqi.me/2017/03/21/nodejs-7/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Jane Liao">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/uploads/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Jane">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">Node学习（七）- Node中的错误处理</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-21T10:43:51+08:00">
+                2017-03-21
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/技术笔记/" itemprop="url" rel="index">
+                    <span itemprop="name">技术笔记</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>毕设中遇到了错误处理和参数检查相关的问题，一直以来这一块都不甚清楚，上网找到了一篇文章，介绍Node.js中处理错误的最佳实践，开篇提出的问题无比吻合我目前的疑惑。</p>
+<p><a href="https://www.joyent.com/node-js/production/design/errors" target="_blank" rel="noopener">英文原文：Error Handling in Node.js</a><br><a href="https://cnodejs.org/topic/55714dfac4e7fbea6e9a2e5d" target="_blank" rel="noopener">中文译文：[译] NodeJS 错误处理最佳实践</a></p>
+<p>以上是原文和译文，在这里是为了加深自身记忆摘取一些重点。<br><a id="more"></a></p>
+<h2 id="Node-js三种主要错误传递方式"><a href="#Node-js三种主要错误传递方式" class="headerlink" title="Node.js三种主要错误传递方式"></a>Node.js三种主要错误传递方式</h2><h3 id="Throw"><a href="#Throw" class="headerlink" title="Throw"></a>Throw</h3><p>作为异常抛出错误，是以同步的方式传递异常，也就是在函数被调用处的相同上下文。如果调用者使用try/catch则可以捕获，如果没有，程序通常会崩溃。</p>
+<p>在Node.js中，错误（error）和异常（exception）是不同的。一个错误是一个Error类的实例，错误在被构造出来后可以直接传递给其他函数或者抛出来。当你抛出一个错误时，它就变成了一个异常。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">// 如下是错误作为异常的例子</span></span><br><span class="line"><span class="keyword">throw</span> <span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'something bad happened!'</span>);</span><br><span class="line"><span class="comment">// 也可以不抛出错误，作为参数传递</span></span><br><span class="line"><span class="comment">// 这种使用方式在Node中更为常见，应为大部分的错误都是异步的</span></span><br><span class="line">callback(<span class="keyword">new</span> <span class="built_in">Error</span>(<span class="string">'something bad happened'</span>);</span><br></pre></td></tr></table></figure>
+<h3 id="Callback"><a href="#Callback" class="headerlink" title="Callback"></a>Callback</h3><p>callback回调函数是专门处理错误和异步操作的结果的函数。callback是最基础的异步传递错误的方式。通常是以callback(err, result)的形式调用，err和result只有一个是non-null，这取决于操作的成败。</p>
+<h3 id="EventEmitter"><a href="#EventEmitter" class="headerlink" title="EventEmitter"></a>EventEmitter</h3><p>在EventEmitter上触发一个Error事件，由调用者监听error事件。这种方式在两种特殊情况下有效：</p>
+<ul>
+<li>当你在执行一个可能产生多个错误或多个结果的操作时。例如http请求的data,end和error事件。</li>
+<li>用在那些具有复杂状态机的对象上，这些对象往往伴随着大量的异步事件。例如socket可能会触发connect, end, timeout, drain, close等事件。这样可以把error作为另外一种可触发的事件。</li>
+</ul>
+<p>在大多数情况下，我们会把 callback 和 event emitter 归到同一个“异步错误传递”篮子里。如果你有传递异步错误的需要，你通常只要用其中的一种而不是同时使用。</p>
+<h2 id="操作-Operational-失败-vs-编程者-Programmer-错误"><a href="#操作-Operational-失败-vs-编程者-Programmer-错误" class="headerlink" title="操作(Operational)失败 vs. 编程者(Programmer)错误"></a>操作(Operational)失败 vs. 编程者(Programmer)错误</h2><h3 id="操作失败"><a href="#操作失败" class="headerlink" title="操作失败"></a>操作失败</h3><p><strong>操作失败</strong>是正确编写的程序在运行时产生的错误。程序中并没有bug。通常它是由其他问题：系统本身（内存溢出，打开的文件太多）、系统配置（访问远端主机的路由不存在）、网络（socket挂起）、远程服务问题（500错误、连接失败等等）。例子如下：</p>
+<ul>
+<li>连接服务器失败</li>
+<li>解析主机名失败</li>
+<li>无效用户输入</li>
+<li>请求超时</li>
+<li>服务器返回500</li>
+<li>socket挂起</li>
+<li>系统内存溢出</li>
+</ul>
+<h3 id="编程者失误"><a href="#编程者失误" class="headerlink" title="编程者失误"></a>编程者失误</h3><p><strong>编程者失误</strong>是程序中的bug。通常修改代码就可以避免这些问题。它们是不可能被正确处理的。例如：</p>
+<ul>
+<li>尝试从‘undefined’读属性</li>
+<li>调用异步函数却不指定回调</li>
+<li>该传对象时却传递字符串</li>
+<li>该传IP地址时却传对象</li>
+</ul>
+<p><strong>操作失败是程序正常操作的一部分，只要被妥善处理，它们就不一定预示着bug或者严重的问题。而由编程者的失误则是bug。</strong></p>
+<h3 id="难分难解的关系"><a href="#难分难解的关系" class="headerlink" title="难分难解的关系"></a>难分难解的关系</h3><p>有时，同一个问题中可能同时存在操作失败和编程者失误，例如：</p>
+<p><em>If an HTTP server tries to use an undefined variable and crashes, that’s a programmer error. Any clients with requests in flight at the time of the crash will see an ECONNRESET error, typically reported in Node as a “socket hang-up”. For the client, that’s a separate operational error. That’s because a correct client must handle a server that crashes or a network that flakes out.</em></p>
+<p>类似，如果不处理好操作失败, 这本身就是一个编程者失误，例如：</p>
+<p><em>If a program tries to connect to a server but it gets an ECONNREFUSED error, and it hasn’t registered a handler for the socket’s ‘error’ event, then the program will crash, and that’s a programmer error. The connection failure is an operational error (since that’s something any correct program can experience when the network or other components in the system have failed), but the failure to handle it is a programmer error.</em></p>
+<h3 id="处理操作失败"><a href="#处理操作失败" class="headerlink" title="处理操作失败"></a>处理操作失败</h3><p>对任何可能导致错误的代码都需要考虑操作失败时发生了什么：</p>
+<ul>
+<li>How it may fail(the failure mode)</li>
+<li>what such a failure would indicate</li>
+</ul>
+<p>错误处理的粒度要细，因为哪里出错和为什么出错决定了它产生的影响大小和对策。</p>
+<p>对于一个给定的错误，有如下对策：</p>
+<ul>
+<li><strong>直接处理</strong>：有的时候该做什么很清楚。</li>
+<li><strong>把出错传递到客户端</strong>：如果不清楚该做什么，最简单的做法就是放弃你正在执行的操作，清理所有开始的，并且把错误抛回客户端。这种方式适合错误短时间内无法解决的情形。例如用户传来一个无效JSON。</li>
+<li><strong>重试操作</strong>：对于由网络或者远程服务引起的错误，有时重试操作是有用的（例如503错误）。<strong>如果确定要重试，就应该清晰的用文档记录下将会多次重试，重试多少次直到失败,以及两次重试的间隔。</strong>另外，<strong>不要每次都假设需要重试</strong>。如果调用栈很深，那么最好是快速失败并且让终端客户来重试。如果每一层调用都重试，反而会导致用户等待更长的时间。</li>
+<li><strong>直接崩溃</strong>：对于本不可能发生的错误或者编程失误导致的错误，可以记录错误日志然后直接崩溃。例如内存不足等。</li>
+<li><strong>记录错误，其他什么也不做</strong>：有的时候你什么都做不了，没有操作可以重试或者放弃，没有任何理由崩溃掉应用程序。例如，你用DNS跟踪了一组远程服务，结果有一个DNS失败了。除了记录一条日志并且继续使用剩下的服务以外，你什么都做不了。</li>
+</ul>
+<h3 id="处理编程错误（并不）"><a href="#处理编程错误（并不）" class="headerlink" title="处理编程错误（并不）"></a>处理编程错误（并不）</h3><p>对于编程错误，<strong>并没有什么可处理的</strong>。从定义上看，一段本该工作的代码坏掉了（比如变量名敲错），你不能用更多的代码再去修复它。即使你这么做了，你也只是用错误处理的代码代替了出错的代码。</p>
+<p>有一些人提倡从编程错误中恢复，也就是允许当前操作失败，但仍然处理请求。这种做法不推荐。</p>
+<p><em>考虑这样的情况：原始代码里有一个失误是没考虑到某种特殊情况。你怎么确定这个问题不会影响其他请求呢？如果其它的请求共享了某个状态（服务器，套接字，数据库连接池等），有极大的可能其他请求会不正常。</em></p>
+<p>因此，<strong>从编程错误中恢复的最好方法就是立刻崩溃</strong>。你应该使用一个restarter运行程序，当程序崩溃时自动重启。如果restarter 准备就绪，崩溃是失误来临时最快的恢复可靠服务的方法。</p>
+<p>在这种情况下使程序崩溃的唯一负面影响就是相连的客户端会暂时被干扰，但是请记住如下几点：</p>
+<ul>
+<li>这些错误本质上是bug, bug在生产代码中应该是极少的，并且享有最高优先级被debug和修复</li>
+<li>请求没有必要一定得成功完成</li>
+<li>在一个可靠地分布式系统中，客户端必须能够通过重连接和重发请求来处理服务器端的错误</li>
+<li><p>如果你的程序如此频繁地崩溃让连接断开变成了问题，那么真正的问题是服务器 Bug 太多了，而不是因为你选择出错就崩溃</p>
+</li>
+<li><p><strong>附：服务端bug太多如何调试？</strong><br>利用堆栈信息和日志。把NodeJS配置成出现未捕获异常时把内核文件打印出来，在GNU/Linux或者illumos系统上使用这些内核文件，查看应用崩溃时的堆栈记录、传给函数的参数、闭包里引用的变量等等。</p>
+</li>
+</ul>
+<h2 id="编写函数的实践"><a href="#编写函数的实践" class="headerlink" title="编写函数的实践"></a>编写函数的实践</h2><p><strong>写好文档！！！</strong><br>包括它接受的参数（附上类型和其它约束），返回值，可能发生的错误，以及这些错误意味着什么。</p>
+<h3 id="如何选择错误传递方式？"><a href="#如何选择错误传递方式？" class="headerlink" title="如何选择错误传递方式？"></a>如何选择错误传递方式？</h3><p>考虑两点：</p>
+<ul>
+<li>这是操作失败还是编程错误</li>
+<li>这个函数本身是同步的还是异步的</li>
+</ul>
+<p>目前为止最常见的例子是在异步函数中发生了操作失败，大多数情况下，会将一个回调函数作为参数传过来，当错误发生时把错误传给回调。例子可参照Node的fs模块。如果情况更复杂，可以考虑使用EventEmitter。即使这样也是以异步传递错误。</p>
+<p>另一个常见例子是JSON.parse，对于这类函数，如果你类似用户无效输入算作操作失败，那么就需要同步传递错误。可以选择抛出（更常用）或者返回错误。</p>
+<p>对于一个给定的函数，如果任何一个操作错误可以被异步传递，那么所有的操作错误都要异步传递。</p>
+<p>通用规则：<strong>一个函数可以同步传递错误（throw），也可以异步传递错误（callback(error) or emitting error），但不应该同时使用。</strong></p>
+<p>对于编程错误它们作为bug，永远不应该被处理，而应该是被修理！<strong>认真讲：除非是在开发环境下，否则编程错误永远都不应该出现</strong>。</p>
+<h3 id="如何界定一个Bad-input是操作失败还是编程错误呢？"><a href="#如何界定一个Bad-input是操作失败还是编程错误呢？" class="headerlink" title="如何界定一个Bad input是操作失败还是编程错误呢？"></a>如何界定一个Bad input是操作失败还是编程错误呢？</h3><p>两个字：<strong>文档</strong></p>
+<p><em>It’s up to you to define and document what types your function will allow and how you’ll try to interpret them.</em></p>
+<p>如果你接收到的输入是文档表明不可接受的，那么就是编程错误；如果输入是文档表明可接收但是你现在无法处理的，那么就是操作失败。</p>
+<p>你要利用自己的判断力来决定你需要的严格程度。建议偏严格一点，毕竟条件太宽松，靠猜测总是更容易错的。</p>
+<p><em>To get specific, imagine a function called “connect” that takes an IP address and a callback and invokes the callback asynchronously after either succeeding or failing. Suppose the user passes something that’s obviously not a valid IP address, like ‘bob’. In this case, you have a few options:</em><br><em>1. Document that the function only accepts strings representing valid IPv4 addresses, and throw an exception immediately if the user passes ‘bob’. This is strongly recommended.</em><br><em>2. Document that the function accepts any string. If the user passes ‘bob’, emit an asynchronous error indicating that you couldn’t connect to IP address ‘bob’.</em></p>
+<p>如果一个值怎么都不可能是有效的，就应该在文档里写明是这不允许的并且立刻抛出一个异常。只要在文档里写的清清楚楚，那这就是一个程序员的失误而不是操作失败。立即抛出可以把Bug带来的损失降到最小，并且保存了开发者可以用来调试这个问题的信息。</p>
+<h2 id="具体的编写新函数的建议"><a href="#具体的编写新函数的建议" class="headerlink" title="具体的编写新函数的建议"></a>具体的编写新函数的建议</h2><h3 id="1-清楚的知道函数是做什么的"><a href="#1-清楚的知道函数是做什么的" class="headerlink" title="1. 清楚的知道函数是做什么的"></a>1. 清楚的知道函数是做什么的</h3><p>每个接口的文档都要清洗的描述如下几点：</p>
+<ul>
+<li>应该输入哪些参数</li>
+<li>每个参数的类型</li>
+<li>每个参数的任何附加的其他约束（例如必须是一个有效IP地址）</li>
+</ul>
+<p>如果以上任意一点错误或者缺少，那么就是编程错误，应该立即抛出异常。<br>另外还有如下内容需要记录在文档中：</p>
+<ul>
+<li>调用方可能会遇到的操作失败（以及它们的name）</li>
+<li>如何处理操作失败（是会作为异常抛出，还是传递给回调，或者是触发事件）</li>
+<li>函数返回值</li>
+</ul>
+<h3 id="2-使用-Error-对象或它的子类，并且实现-Error-的协议"><a href="#2-使用-Error-对象或它的子类，并且实现-Error-的协议" class="headerlink" title="2. 使用 Error 对象或它的子类，并且实现 Error 的协议"></a>2. 使用 Error 对象或它的子类，并且实现 Error 的协议</h3><p>所有错误应该使用Error类或者它的子类，并应该提供name和message属性，以及准确的stack。</p>
+<h3 id="3-使用Error的name属性在程序中区分错误"><a href="#3-使用Error的name属性在程序中区分错误" class="headerlink" title="3. 使用Error的name属性在程序中区分错误"></a>3. 使用Error的name属性在程序中区分错误</h3><p>当你想要知道错误是何种类型的时候，用 name 属性。可以考虑重用使用JavaScript内置的错误名如RangeError， Http异常如BadRequestError等<br>不要想着给每个东西都取一个新名字，可以取一个大类别，再通过属性说明具体问题。</p>
+<h3 id="4-通过给Error对象增加属性增加细节说明"><a href="#4-通过给Error对象增加属性增加细节说明" class="headerlink" title="4. 通过给Error对象增加属性增加细节说明"></a>4. 通过给Error对象增加属性增加细节说明</h3><p>Node内置<a href="https://nodejs.org/api/errors.html" target="_blank" rel="noopener">Error</a>类详细介绍，可以通过设定相关属性值增加细节，至少如下属性需要说明：</p>
+<ul>
+<li>name: 用于在程序里区分众多的错误类型</li>
+<li>message: 可读（人而非机器）的错误消息。对可能读到这条消息的人来说这应该已经足够完整。如果你从更底层的地方传递了一个错误，你应该加上一些信息来说明你在做什么。</li>
+<li>stack：一般来讲不要随意扰乱堆栈信息。甚至不要增强它。V8引擎只有在这个属性被读取的时候才会真的去运算，以此大幅提高处理异常时候的性能。如果你读完再去增强它，结果就会多付出代价，哪怕调用者并不需要堆栈信息。</li>
+</ul>
+<h3 id="5-如果要把底层抛出的错误传给上层调用者，记得先包装"><a href="#5-如果要把底层抛出的错误传给上层调用者，记得先包装" class="headerlink" title="5. 如果要把底层抛出的错误传给上层调用者，记得先包装"></a>5. 如果要把底层抛出的错误传给上层调用者，记得先包装</h3><p>通过包装，我们传递一个新的包含了所有底层错误消息和基于当前层附加的有用的上下文。<br>包装一个错误需要考虑的几点：</p>
+<ul>
+<li>对于原始错误，原封不动地传给上层，当调用者想直接从原始错误获取信息时它仍是可访问的</li>
+<li>要么使用原来的名字，要么显示地选择一个更有意义的名字</li>
+<li>保留原错误的所有属性。在合适的情况下增强message属性（但是不要在原始的异常上修改）。浅拷贝其它的像是syscall，errno这类的属性。最好是直接拷贝除了 name，message和stack以外的所有属性，而不是硬编码等待拷贝的属性列表。不要理会stack，因为即使是读取它也是相对昂贵的。如果调用者想要一个合并后的堆栈，它应该遍历错误原因并打印每一个错误的堆栈。</li>
+</ul>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/Node/" rel="tag"># Node</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2017/03/12/nodejs-6/" rel="next" title="Node学习（六）- 内存控制（二）">
+                <i class="fa fa-chevron-left"></i> Node学习（六）- 内存控制（二）
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/03/24/js-singleton/" rel="prev" title="JavaScript设计模式（一）- 单例模式">
+                JavaScript设计模式（一）- 单例模式 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <img class="site-author-image" itemprop="image"
+                src="/uploads/avatar.jpg"
+                alt="Jane Liao" />
+            
+              <p class="site-author-name" itemprop="name">Jane Liao</p>
+              <p class="site-description motion-element" itemprop="description"></p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">55</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                <a href="/categories/index.html">
+                  <span class="site-state-item-count">6</span>
+                  <span class="site-state-item-name">分类</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                <a href="/tags/index.html">
+                  <span class="site-state-item-count">21</span>
+                  <span class="site-state-item-name">标签</span>
+                </a>
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+            <div class="links-of-author motion-element">
+                
+                  <span class="links-of-author-item">
+                    <a href="https://github.com/JaneLdq" target="_blank" title="GitHub">
+                      
+                        <i class="fa fa-fw fa-github"></i>GitHub</a>
+                  </span>
+                
+                  <span class="links-of-author-item">
+                    <a href="mailto:janeldq95@gmail.com" target="_blank" title="E-Mail">
+                      
+                        <i class="fa fa-fw fa-envelope"></i>E-Mail</a>
+                  </span>
+                
+            </div>
+          
+
+          
+          
+
+          
+          
+            <div class="links-of-blogroll motion-element links-of-blogroll-block">
+              <div class="links-of-blogroll-title">
+                <i class="fa  fa-fw fa-link"></i>
+                胖又萌
+              </div>
+              <ul class="links-of-blogroll-list">
+                
+                  <li class="links-of-blogroll-item">
+                    <a href="https://kasswang.cn/" title="卡斯奈" target="_blank">卡斯奈</a>
+                  </li>
+                
+                  <li class="links-of-blogroll-item">
+                    <a href="http://1016990109.github.io/" title="七秒悲伤" target="_blank">七秒悲伤</a>
+                  </li>
+                
+              </ul>
+            </div>
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#Node-js三种主要错误传递方式"><span class="nav-number">1.</span> <span class="nav-text">Node.js三种主要错误传递方式</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#Throw"><span class="nav-number">1.1.</span> <span class="nav-text">Throw</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#Callback"><span class="nav-number">1.2.</span> <span class="nav-text">Callback</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#EventEmitter"><span class="nav-number">1.3.</span> <span class="nav-text">EventEmitter</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#操作-Operational-失败-vs-编程者-Programmer-错误"><span class="nav-number">2.</span> <span class="nav-text">操作(Operational)失败 vs. 编程者(Programmer)错误</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#操作失败"><span class="nav-number">2.1.</span> <span class="nav-text">操作失败</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#编程者失误"><span class="nav-number">2.2.</span> <span class="nav-text">编程者失误</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#难分难解的关系"><span class="nav-number">2.3.</span> <span class="nav-text">难分难解的关系</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#处理操作失败"><span class="nav-number">2.4.</span> <span class="nav-text">处理操作失败</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#处理编程错误（并不）"><span class="nav-number">2.5.</span> <span class="nav-text">处理编程错误（并不）</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#编写函数的实践"><span class="nav-number">3.</span> <span class="nav-text">编写函数的实践</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#如何选择错误传递方式？"><span class="nav-number">3.1.</span> <span class="nav-text">如何选择错误传递方式？</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#如何界定一个Bad-input是操作失败还是编程错误呢？"><span class="nav-number">3.2.</span> <span class="nav-text">如何界定一个Bad input是操作失败还是编程错误呢？</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#具体的编写新函数的建议"><span class="nav-number">4.</span> <span class="nav-text">具体的编写新函数的建议</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-清楚的知道函数是做什么的"><span class="nav-number">4.1.</span> <span class="nav-text">1. 清楚的知道函数是做什么的</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#2-使用-Error-对象或它的子类，并且实现-Error-的协议"><span class="nav-number">4.2.</span> <span class="nav-text">2. 使用 Error 对象或它的子类，并且实现 Error 的协议</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#3-使用Error的name属性在程序中区分错误"><span class="nav-number">4.3.</span> <span class="nav-text">3. 使用Error的name属性在程序中区分错误</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#4-通过给Error对象增加属性增加细节说明"><span class="nav-number">4.4.</span> <span class="nav-text">4. 通过给Error对象增加属性增加细节说明</span></a></li><li class="nav-item nav-level-3"><a class="nav-link" href="#5-如果要把底层抛出的错误传给上层调用者，记得先包装"><span class="nav-number">4.5.</span> <span class="nav-text">5. 如果要把底层抛出的错误传给上层调用者，记得先包装</span></a></li></ol></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; 2015 &mdash; <span itemprop="copyrightYear">2019</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Jane Liao</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Mist</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+  
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Config({
+        tex2jax: {
+          inlineMath: [ ['$','$'], ["\\(","\\)"]  ],
+          processEscapes: true,
+          skipTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+        }
+      });
+    </script>
+
+    <script type="text/x-mathjax-config">
+      MathJax.Hub.Queue(function() {
+        var all = MathJax.Hub.getAllJax(), i;
+        for (i=0; i < all.length; i += 1) {
+          all[i].SourceElement().parentNode.className += ' has-jax';
+        }
+      });
+    </script>
+    <script type="text/javascript" src="//cdn.bootcss.com/mathjax/2.7.1/latest.js?config=TeX-AMS-MML_HTMLorMML"></script>
+  
+
+
+  
+
+  
+
+</body>
+</html>
