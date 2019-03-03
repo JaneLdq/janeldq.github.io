@@ -16,5 +16,4 @@ install:
 script:
 - hexo clean
 - hexo generate
-after_success:
-- hexo deploy
+- hexo deploy --silent
