@@ -1,0 +1,18 @@
+language: node_js
+branches:
+  only:
+  - source #源码分支名称
+before_install:
+- npm install -g hexo
+- npm install -g hexo-cli
+before_script:
+- git config user.name "janeldq"
+- git config user.email "janeldq@163.com"
+- sed -i'' "s~https://github.com/JaneLdq/janeldq.github.io.git~https://${GITHUB_ACCESS_TOKEN}@github.com/JaneLdq/janeldq.github.io.git~" _config.yml
+install:
+- npm install
+script:
+- hexo clean
+- hexo generate
+after_success:
+- hexo deploy
