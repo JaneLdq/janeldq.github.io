@@ -20,5 +20,5 @@
   },
   "optionalDependencies": {
     "fsevents": "^2.0.1"
-  },
+  }
 }
