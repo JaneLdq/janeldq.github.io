@@ -86,5 +86,5 @@ math:
 ## Docs: https://hexo.io/docs/deployment.html
 deploy:
   type: git
-  repo: git@github.com:JaneLdq/janeldq.github.io.git
+  repo: https://github.com/JaneLdq/janeldq.github.io.git
   branch: master
