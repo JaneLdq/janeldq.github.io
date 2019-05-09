@@ -2,8 +2,6 @@
 title: Cyber Attacks Note 1 - Vulnerability, Threat & Risk
 date: 2019-04-15 20:04:30
 categories: Web安全
-tags: 
-- Cyber Attacks
 ---
 
 失踪人口回归啦～《Cyber Attacks Notes》系列正式开坑～
