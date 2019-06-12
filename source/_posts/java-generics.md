@@ -5,7 +5,7 @@ categories: 技术笔记
 tags: Java
 ---
 
-围观面试，正好有聊到Java泛型，自己的记忆也有点模糊，于是翻出了很久之前的零散笔记，准备重新整理了一波。
+围观面试，正好有聊到Java泛型，自己的记忆也有点模糊，于是翻出了很久之前的零散笔记，重新整理了一波。
 
 持续更新中...
 
@@ -121,6 +121,7 @@ public static <T> void fromArrayToCollection(T[] a, Collection<T> c) {
         c.add(o); // Correct
     }
 }
+```
 
 我们又见到了熟悉的尖括号对`<T>`，同泛型类定义一样，这里的`T`表示类型参数，在方法声明的形参中，我们就可以使用`T`来指定形参的类型。当我们使用这个函数时，T的值就根据传入的参数类型来决定。
 再看个例子就懂啦：
@@ -140,21 +141,48 @@ fromArrayToCollection(strArr, intList); // error， 如果根据输入变量的�
 ## Bounded类型参数
 
 除了像上面的例子中展示的定义一个普通的类型参数之外，有时候我们可能会想要限制类型参数的类型，比如限定它只能是某个接口或类的子类。这时我们就需要用到Bounded类型参数(Bounded Type Parameters)。
-Bounded类型参数的
+Bounded类型参数的定义如下例所示，即类型参数名，接上`extends`关键词，后面紧跟上界(upper bound)，表示这个泛型类/接口或泛型方法接受的类型参数必须为upper bound的子类/接口。
+```java
+public class NaturalNumber<T extends Integer> {
+    private T n;
+    public NaturalNumber(T n)  { this.n = n; }
+    public boolean isEven() {
+        return n.intValue() % 2 == 0;
+    }
+}
+```
 
+类型参数还可以定义多个上界，表示类型参数必须同时是这几个类或接口的子类。写法如下所示：
+```java
+class A { /* ... */ }
+interface B { /* ... */ }
+interface C { /* ... */ }
+class D <T extends A & B & C> { /* ... */ }
+```
+
+值得注意的一点，所有的上界中最多有一个是Class，其余皆为Interface，并且这个Class要放在第一位。否则会报错。
+```java
+class D <T extends B & A & C> { /* ... */ } // 这样就不行哦
+```
 
 ---
 # 神奇的通配符
+在上面的几节里我们介绍了关于泛型的定义相关的内容，在这一节，我们将介绍一个使用泛型时会见到的东西——通配符`?`。
 
-前面提到了要避免使用原始类型，但有的时候我们想使用泛型，但是又不能确定实际的类型参数，这个时候要怎么办呢？针对这类场景，Java泛型提供了通配符`?`作为替代。
+通配符的使用场景通常有如下几种：
+* **as the type of a parameter, field, or local variable**
+* sometimes **as a return type** (though it is better programming practice to be more specific)
 
+另一方面，
+> *The wildcard is never used as a type argument for a generic method invocation, a generic class instance creation, or a supertype.*
+
+---
 ## Unbounded通配符
-直接使用通配符 `?` 就是无界通配符，例如`List<?>`，这时这个`List`就是一个未知类型的`List`。
+单独使用的通配符 `?` 被称为无界(unbounded)通配符，例如`List<?>`，这时这个`List`被称为“一个未知类型的`List`”。
 无界通配符适用于以下两种场景：
 
-    1. If you are writing a method that can be implemented using functionality provided in the Object class.
-    
-    2. When the code is using methods in the generic class that don't depend on the type parameter. For example, List.size or List.clear. In fact, Class<?> is so often used because most of the methods in Class<T> do not depend on T.
+* If you are writing a method that can be implemented using functionality provided in the Object class.
+* When the code is using methods in the generic class that don't depend on the type parameter. For example, List.size or List.clear. In fact, Class<?> is so often used because most of the methods in Class<T> do not depend on T.
 
 还是举个例子：
 ```java
@@ -164,22 +192,22 @@ public static void print(List<Object> list) {
     }
 }
 ```
-上面这个方法呢，本意是想能打印任意类型的`List`，然而这样做并不能达到目的。因为像`List<String>`, `List<Integer>`, `List<MyClass>` 并不是`List<Object>`的子类（关于*泛型的继承关系*请接着往下看）。
+上面这个方法呢，本意是想能打印任意类型的`List`，然而这样做并不能达到目的。因为像`List<String>`, `List<Integer>`, `List<MyClass>` 并不是`List<Object>`的子类（更多关于*泛型的继承关系*请前往下面的章节往下看）。
 这时候Unbounded Wildcard就派上用场了，把`List<Object>`换成`List<?>`问题就解决啦。
 
 > *It's important to note that `List<Object>` and `List<?>` are not the same. You can insert an Object, or any subtype of Object, into a `List<Object>`. But you can **only insert null** into a `List<?>`.*
 
 ---
 ## Bounded通配符
-跟无界通配符相对应的，还有有界通配符。有界通配符又分为如下两类：
+跟无界通配符相对应的，还有Bounded通配符。Bounded通配符又分为如下两类：
 
-### Upper Bounded - `< ? extends supertype>`
+### Upper Bounded - <? extends supertype>
 
-当希望类型变量的值是某个类（接口）以及其子类时，就可以使用Upper Bounded Wildcards - `< ? extends supertype>`。
+当希望类型变量的值是某个类（接口）以及其子类时，就可以使用Upper Bounded Wildcards - `<? extends supertype>`。
 
 举个例子：
 ```java
-public static void sum(List<? extends Number> list>) {
+public static void sum(List<? extends Number> list) {
     double s = 0.0;
     for (Number n : list)
         s += n.doubleValue();
@@ -189,9 +217,9 @@ public static void sum(List<? extends Number> list>) {
 上面的sum方法就对`Number`及其子类的`List`进行处理，所以`List<Integer>`,  `List<Double>`,  `List<Float>`,  `List<Number>`都是合法参数。如果使用`List<Number>`而不是`List<? extends Number>`那么将只有`List<Number>`是合法的。
 
 ---
-### Lower Bounded - `< ? super subtype>` 
+### Lower Bounded - <? super subtype>
 
-与Upper Bounded Wildcards相反，Lower Bounded Wildcards - `< ? super subtype>`限制的是下限，即用于指定参数可以是一个具体的类型以及它的父类。
+与Upper Bounded Wildcards相反，Lower Bounded Wildcards - `<? super subtype>`限制的是下限，即用于指定参数可以是一个具体的类型以及它的父类。
 
 举个例子：
 ```java
@@ -216,13 +244,11 @@ public static void addNumbers(List<? super Integer> list) {
 在考虑何时该使用哪种通配符之前，我们先将函数的变量分个类：
 
 * **输入变量** - 输入变量为代码提供数据。举个栗子，在拷贝方法`copy(source, destination)`中，source提供数据源，所以它是输入变量
-
 * **输出变量** - 输出变量用于存储提供给其他用途的数据。还是原来的栗子，在拷贝方法`copy(src, dest)`中的,destination用于接收数据，所以它是输出变量。
 
 当然啦，也有即作为输入又作为输出的变量，我们在具体的指导规则中再讨论。
 
 通过输入/输出原则我们就可以确定不同通配符的适用情形了：
-
 * **对于输入变量，使用`<? extends supertype>`**。对于内部代码而言，只要输入变量有它要调用的接口就可以了，至于其子类自己添加的那些并不关心。
 * **对于输出变量，使用`<? super subtype>`**。对于输出而言，使用下界通配符才能保证要输出的字段都可以被赋值。
 * 当作为输入变量是可以通过`Object`类中定义的方法访问时，使用Unbounded wildcard(`?`)
@@ -235,8 +261,10 @@ public static void addNumbers(List<? super Integer> list) {
 ---
 
 **参考资料**
-* The Java Tutorial - Generics
+* [The Java Tutorial - Generics][1]
 * *Effective Java (3rd Edition)*
+
+ [1]: https://docs.oracle.com/javase/tutorial/java/generics/index.html
 
 <!--
 ---
@@ -252,167 +280,4 @@ interface MyList<E,T> extends List<E> {
   ...
 }
 ```
-
----
-# 类型消除(Type Erasure)
-Java通过类型消除来实现泛型，Java编译器使用类型消除达到如下效果：
-
-* 将所有泛型的类型参数替换成它们的bounds，如果是参数是unbounded，那么替换成Object。这样生成的二进制码中就只有一般的类、接口和方法了。
-* 在必要时插入强制类型转换来保证类型安全
-* 生成桥接方法来保证多态性
-
-我们来看一些栗子。
-## 替换泛型类、接口和泛型方法
-举个栗子，
-```java
-public class Box<T> {
-    private T t;
-    public Box(T t) {this.t = t;}
-    public T get() { return t; }
-}
-```
-上面的Box&lt;T>中的T是unbounded的，所以编译器会将Box&lt;T>中的T替换成Object，变成下面这样：
-```java
-public class Box {
-    private Object t;
-    public Box(Object t) {this.t = t;}
-    public Object get() { return t; }
-}
-```
-再看一个有界的栗子,
-```java
-public class Box<T extends Comparable<T>> {
-    private T t;
-    public Box(T t) {this.t = t;}
-    public T get() { return t; }
-}
-```
-编译器处理后就变成了下面这样：
-```java
-public class Box {
-    private Comparable t;
-    public Box(Comparable) {this.t = t;}
-    public Comparable get() { return t; }
-}
-```
-
-对于泛型方法的处理，同理：
-```java
-// 原始泛型方法
-public static <T extends Shape> void draw(T shape) { /* ... */ }
-// 处理过后
-public static void draw(Shape shape) { /* ... */ }
-```
-
-## 需要引入桥接方法的情况
-还是看代码说话，给定一个泛型类Node和它的子类IntNode：
-```java
-public class Node<T> {
-    public T data;
-    public Node(T data) { this.data = data; }
-    public void setData(T data) { this.data = data; }
-}
-
-public class IntNode extends Node<Integer> {
-    public IntNode(Integer data) { super(data); }
-    public void setData(Integer data) {
-        super.setData(data);
-    }
-}
-```
-假设我们写了如下代码：
-```java
-IntNode in = new IntNode(19);
-Node n = in;
-n.setData("hhh");
-Integer data = in.data;
-```
-上面这段代码在编译器做完类型消除之后，会变成下面这样：
-```java
-IntNode in = new IntNode(19);
-Node n = (IntNode)iNode;
-n.setData("hhh"); //这里调用的是IntNode继承自父类中的setData(Object)方法，所以在n的data字段中保存的引用其实是引向了一个String类
-Integer data = (String)in.data; // in和n指向同一个对象，但是in中期待的data类型是Integer，因此在吧String转成Integer的时候就抛异常啦
-```
-
-正如上所示，在编译一个继承自泛型类或接口的子类时，编译器需要再做完类型消除后创建一个桥接方法来保证多态性，否则就会出错。对于程序员来说，并不需要关系桥接方法的生成，在这里提到只是为了更详细的了解Java的泛型机制而已。
-
-以上的Node类和IntNode类在编译器处理完类型消除后会变成如下长相：
-```java
-public class Node {
-    public Object data;
-    public Node(Object data) { this.data = data; }
-    public void setData(Object data) {this.data = data};
-}
-public class IntNode extends Node {
-    public Integer data;
-    public IntNode(Integer data) { super(data); }
-    public void setData(Integer data) { super.setData(data); }
-}
-```
-这时IntNode.setData(Integer data)和Node.setData(Object data)由于参数不同变成了两个方法，也就是说，父类Node.setData方法并不会被Override，由此失去了多态性，这并不是我们希望看到的结果。因此，为了解决这个问题，编译器会在IntNode中生成一个桥接方法：
-
-```java
-public class IntNode extends Node {
-    // 编译器在编译时添加的桥接方法
-    public void setData(Object data) {
-        setData((Integer) data));
-    }
-    public void setData(Integer data) { super.setData(data); }
-    // ...
-}
-```
-
-由于编译器实际上是做了类型消除和添加桥接方法两步，在我们实际运行下面这段代码时，在调用n.setData("hhh")时就会报异常了。
-```java
-IntNode in = new IntNode(19);
-Node n = (IntNode)iNode;
-n.setData("hhh"); // 在这一步就会抛出错误了，java.lang.ClassCastException: java.lang.String cannot be cast to java.lang.Integer
-Integer data = (String)in.data; 
-```
-# Non-Reifiable Types - 不可具体化类型
-不可具体化类型是指其运行时表示法包含的信息比它编译时表示法包含的信息更少的类型。
-例如List&lt;String>和List&lt;Integer>等泛型类型，它们的类型信息在编译之后，经过类型消除，运行时表示法都变成List，JVM并不能分别二者的不同。
-
-
----
-
-# 对泛型的限制
-
-* Cannot Instantiate Generic Types with Primitive Types（不能将原始类型作为实例化泛型的类型参数）
-* Cannot Create Instances of Type Parameters（不能使用类型参数创建实例，但是可以使用反射机制作为workround）
-```java
-public static <E> void append(List<E> list) {
-    E elem = new E();  // 编译时错误，直接创建是不行的
-    list.add(elem);
-}
-public static <E> void append(List<E> list, Class<E> cls) throws Exception {
-    E elem = cls.newInstance();   // 使用反射机制是可以的
-    list.add(elem);
-}
-```
-
-* Cannot Declare Static Fields Whose Types are Type Parameters（不能将静态字段声明成类型参数的类型，想想静态字段是所有实例都共享的，然而每个实例的类型参数都可能是不同的，你不能要求一个静态字段既是A又是B还是C，明显不合理嘛）
-
-* Cannot Use Casts or instanceof With Parameterized Types
-
-* Cannot Create Arrays of Parameterized Type
-```java
-List<String>[] strLists = new List<String>[1]; // 假设这样是合法的
-List<Integer> intList = Arrays.asList(42);
-Object[] objs = strLists; // 这是合法的，数组时协变(covariant)的，即SubClass[]是ParentClass[]的子类型
-objs[0] = intList; // 这是合法的，在类型擦除之后List<Integer>变成了List, List<String>[]变成了List[]
-String s = strLists[0].get(0); // 此时strLists的第一个元素指向了intList，它返回的是Integer
-
-```
-
->数组和泛型有着非常不同的类型规则。数组提供了运行时的类型安全，但是没>有编译时的类型安全；反之，泛型提供了编译时的类型安全，却可能在运行时>出现ClassCastException。一般情况下，数组与泛型并不是很好混合使用，此>时最好使用列表代替数组。
-> —— 《Effective Java》第26条
-
-* Cannot Create, Catch, or Throw Objects of Parameterized Types
-
-* Cannot Overload a Method Where the Formal Parameter Types of Each Overload Erase to the Same Raw Type
 -->
-
----
-
