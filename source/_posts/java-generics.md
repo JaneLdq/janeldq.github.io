@@ -112,7 +112,6 @@ List<Integer> baz = raw; // warning: unchecked conversion
 *首先，使用原始类型`List`就失去了泛型提供的类型检查和隐式强转的好处；其次，这里还涉及到泛型的继承，举个例子，`List<String>`可以赋值给`List`，而不能赋值给`List<Object>`，因为`List<String>`是`List`的子类却不是`List<Object>`的子类。关于泛型的继承关系，我们接下来还会进一步介绍。*
 
 ---
-
 ## 泛型方法
 除了定义整个泛型之外，我们也可以只针对某个方法设置它的类型参数，这类方法就被称为泛型方法。
 举个例子，比如我们想写一个工具类方法，把某个数组中的所有元素添加到一个Collection中，那么可以定义这样一个泛型方法:
@@ -122,7 +121,7 @@ public static <T> void fromArrayToCollection(T[] a, Collection<T> c) {
         c.add(o); // Correct
     }
 }
-```
+
 我们又见到了熟悉的尖括号对`<T>`，同泛型类定义一样，这里的`T`表示类型参数，在方法声明的形参中，我们就可以使用`T`来指定形参的类型。当我们使用这个函数时，T的值就根据传入的参数类型来决定。
 再看个例子就懂啦：
 ```java
@@ -136,6 +135,13 @@ fromArrayToCollection(intArr, intList); // 调用时传入的参数是Integer数
 
 fromArrayToCollection(strArr, intList); // error， 如果根据输入变量的推断出的参数类型不一样，编译器就会报错啦
 ```
+
+---
+## Bounded类型参数
+
+除了像上面的例子中展示的定义一个普通的类型参数之外，有时候我们可能会想要限制类型参数的类型，比如限定它只能是某个接口或类的子类。这时我们就需要用到Bounded类型参数(Bounded Type Parameters)。
+Bounded类型参数的
+
 
 ---
 # 神奇的通配符
