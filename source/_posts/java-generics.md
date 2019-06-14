@@ -7,8 +7,6 @@ tags: Java
 
 围观面试，正好有聊到Java泛型，自己的记忆也有点模糊，于是翻出了很久之前的零散笔记，重新整理了一波。
 
-持续更新中...
-
 ---
 
 在引入泛型之前，在Java中使用Collections是一种非常容易出错的操作。举个例子：
@@ -232,13 +230,6 @@ public static void addNumbers(List<? super Integer> list) {
 
 上面这个方法希望任何一个能存储`Integer`值的类型都可以作为参数，那么相比较于只允许`Integer`类型作为元素的`List<Integer>`，`List<? super Integer>`使得`List<Number>`, `List<Object>`类型都可以作为参数使用。
 
-<!--
-## 通配符间的继承关系
-看图说话！
-
-![通配符间的继承关系][2]
--->
-
 ---
 ## 通配符的使用指南
 在考虑何时该使用哪种通配符之前，我们先将函数的变量分个类：
@@ -256,7 +247,41 @@ public static void addNumbers(List<? super Integer> list) {
 
 以上这些原则并不适用与返回值，应该尽量避免在返回值中使用通配符，因为这种写法就是在强制方法的调用者来处理通配符。
 
-未完待续...
+---
+# 泛型中的继承关系
+
+## 一般泛型的继承关系
+废话不多说，直接看图：
+![java generics.png-17.8kB][2]
+
+上图中MyList接口的定义如下：
+```java
+interface MyList<E,T> extends List<E> {
+  void setValue(int index, T val);
+  // ...
+}
+```
+
+## 通配符的继承关系
+照样先上图：
+![java generic wildcard subtyping.png-19.1kB][3]
+关于上图中左边的关系，以`Integer`和`Number`为例，`Integer`是`Number`的子类。这里再说明一下，在使用一般泛型类型参数的泛型类继承关系中`List<Integer>`并不是`List<Number>`的子类，但它们都是`List<?>`的子类。
+这样写的代码是会报错的：
+```java
+List<Integer> intList = new ArrayList<>();
+List<Number> numList = intList; // compile error
+```
+那如果我们想List<Integer>的元素能够以Number的方法访问要怎么写呢？根据右边展示的关系，可以使用下面这段代码来实现：
+```java
+List<? extends Integer> intList = new ArrayList<>();
+List<? extends Number> numList = intList;
+```
+
+---
+
+关于泛型的一些介绍就先这样吧，把大概的框架梳理了一下，没想到断断续续每天一两个小时的，也花了小一周的时间。
+另外还有一些相关的话题，比如Java中的类型擦除，就没有放在这里，准备之后单独新开一篇做整理。
+下次见啦~
 
 ---
 
@@ -265,19 +290,5 @@ public static void addNumbers(List<? super Integer> list) {
 * *Effective Java (3rd Edition)*
 
  [1]: https://docs.oracle.com/javase/tutorial/java/generics/index.html
-
-<!--
----
-
-# 泛型的继承关系
-看图说话！
-![泛型的继承关系][1]
-
-图中的MyList类定义如下
-```java
-interface MyList<E,T> extends List<E> {
-  void setValue(int index, T val);
-  ...
-}
-```
--->
+ [2]: http://static.zybuluo.com/JaneL/w21v266p6vpcn5ek2twqiir3/java%20generics.png
+ [3]: http://static.zybuluo.com/JaneL/6xydzj9b0o6o8npu9v07sfu4/java%20generic%20wildcard%20subtyping.png
