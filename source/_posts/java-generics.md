@@ -289,6 +289,7 @@ List<? extends Number> numList = intList;
 
 **参考资料**
 * [The Java Tutorial - Generics][1]
+* *Core Java: Volumn 1*
 * *Effective Java (3rd Edition)*
 * *深入理解Java虚拟机（第二版）*
 
