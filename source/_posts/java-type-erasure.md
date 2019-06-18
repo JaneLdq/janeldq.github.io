@@ -83,6 +83,8 @@ public class Box<T extends java.lang.Comparable<T>> {
 }
 ```
 
+【Note】如果Bounds有多个，那么类型擦除会将类型参数替换为第一个bound，比如`<T extends Comparable & Serializable>`在编译过后就会变成`Comparable`，而后面的bounds编译器会在必要时插入强制转换。因此，因尽量将`tagging interface`(不包含方法的接口)放在后面。
+
 对于泛型方法的处理，同理：
 ```java
 public class Util {
@@ -148,6 +150,7 @@ public class Node<T> {
 public class IntNode extends Node<Integer> {
     public IntNode(Integer data) { super(data); }
     public void setData(Integer data) {
+        // do something elses
         super.setData(data);
     }
 }
@@ -234,6 +237,7 @@ PS：关于Java泛型和类型擦除另外还有一些值得注意的点和容�
 
 **参考资料**
 * [The Java Tutorial - Generics][1]
+* *Core Java Volumn 1 - Fundamentals*
 * *深入理解Java虚拟机（第二版）*
 
  [1]: https://docs.oracle.com/javase/tutorial/java/generics/erasure.html
