@@ -236,18 +236,71 @@ public static void addNumbers(List<? super Integer> list) {
 ## 通配符的使用指南
 在考虑何时该使用哪种通配符之前，我们先将函数的变量分个类：
 
-* **输入变量** - 输入变量为代码提供数据。举个栗子，在拷贝方法`copy(source, destination)`中，source提供数据源，所以它是输入变量
-* **输出变量** - 输出变量用于存储提供给其他用途的数据。还是原来的栗子，在拷贝方法`copy(src, dest)`中的,destination用于接收数据，所以它是输出变量。
+* **输入变量(Producer)** - 输入变量为代码提供数据。举个栗子，在拷贝方法`copy(src, dest)`中，source提供数据源，所以它是输入变量
+* **输出变量(Consumer)** - 输出变量用于存储提供给其他用途的数据。还是原来的栗子，在拷贝方法`copy(src, dest)`中的,dest用于接收数据，所以它是输出变量。
 
 当然啦，也有即作为输入又作为输出的变量，我们在具体的指导规则中再讨论。
 
 通过输入/输出原则我们就可以确定不同通配符的适用情形了：
-* **对于输入变量，使用`<? extends supertype>`**。对于内部代码而言，只要输入变量有它要调用的接口就可以了，至于其子类自己添加的那些并不关心。
-* **对于输出变量，使用`<? super subtype>`**。对于输出而言，使用下界通配符才能保证要输出的字段都可以被赋值。
+* **对于Producer，使用`<? extends supertype>`**。对于内部代码而言，只要输入变量有它要调用的接口就可以了，至于其子类自己添加的那些并不关心。
+* **对于Consumer，使用`<? super subtype>`**。对于输出而言，使用下界通配符才能保证要输出的字段都可以被赋值。
 * 当作为输入变量是可以通过`Object`类中定义的方法访问时，使用Unbounded wildcard(`?`)
 * 当一个变量既作为输入变量又作为输出变量时，就不要使用通配符啦
 
-以上这些原则并不适用与返回值，应该尽量避免在返回值中使用通配符，因为这种写法就是在强制方法的调用者来处理通配符。
+> PECS stands for producer-extends, consumer-super. (from *Effective Java*)
+
+以上这些原则并不适用与返回值，**应该尽量避免在返回值中使用通配符**，因为这种写法就是在强制方法的调用者来处理通配符。如果调用者在使用一个类或方法时需要考虑通配符，那么你就要思考一下是不是这个类或方法的设计有问题啦。
+
+再举个特殊的例子，`Comparable`和`Comparator`总是扮演consumer的角色，因此在使用时都推荐使用`Comparable<? super T>`和`Comparator<? super T>`
+(A comparable of T consumes T instances (and produces integers indicating order relations))。
+```java
+public static <E extends Comparable<? super E>> E max(Collection<? extends E> c) { 
+    if (c.isEmpty())
+        throw new IllegalArgumentException("Empty collection");
+    E result = null;
+    for (E e : c)
+        if (result == null || e.compareTo(result) > 0)
+            result = Objects.requireNonNull(e);
+    return result;
+}
+```
+
+### 通配符与类型参数的对偶性（duality）
+很多方法既可以使用通配符声明也可以使用普通类型参数声明。比如下面的`swap`方法：
+```java
+public static <E> void swap(List<E> list, int i, int j);
+public static void swap(List<?> list, int i, int j); 
+```
+
+那么这两种方式那种更好呢？对于公共API，推荐使用第二种方式，因为更简单。毕竟swap方法只是交换list中两个元素的位置，实际上并不需要考虑类型参数。
+**一般来说，如果一个类型参数只在方法声明中出现，那么应该用通配符替换它**。(if a type parameter appears only once in a method declaration, replace it with a wildcard.)
+
+那么使用通配符声明的方式，内部要如何实现呢？像下面这样写吗？
+```java
+public static void swap(List<?> list, int i, int j) {
+    list.set(i, list.set(j, list.get(i)));
+}
+```
+这样写是通不过编译的，编译器会报如下错误：
+```java
+error: incompatible types: Object cannot be converted to CAP#1
+        list.set(i, list.set(j, list.get(i)));
+                                        ^
+  where CAP#1 is a fresh type-variable:
+    CAP#1 extends Object from capture of ?
+```
+
+问题就出在`List<?>`，除了`null`你是不能忘`List<?>`类型的实例中塞任何东西的。那怎么办呢？答案就是把两种声明方式结合起来使用：
+```java
+public static void swap(List<?> list, int i, int j) {
+    swapHelper(list, i, j);
+}
+// Private helper method for wildcard capture
+private static <E> void swapHelper(List<E> list, int i, int j) { 
+    list.set(i, list.set(j, list.get(i)));
+}
+```
+通过引入一个私有的`swapHelper`方法，我们既对外提供了使用通配符的便利性，又在内部利用类型参数保证了类型安全。
 
 ---
 # 泛型中的继承关系
@@ -289,7 +342,7 @@ List<? extends Number> numList = intList;
 
 **参考资料**
 * [The Java Tutorial - Generics][1]
-* *Effective Java (3rd Edition)*
+* *Effective Java (3rd Edition) - Chapter 5 Generics*
 * *深入理解Java虚拟机（第二版）*
 
  [1]: https://docs.oracle.com/javase/tutorial/java/generics/index.html
