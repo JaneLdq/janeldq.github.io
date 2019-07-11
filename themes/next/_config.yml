@@ -128,7 +128,7 @@ scheme: Mist
 # Value after `||` delimeter is the name of FontAwesome icon. If icon (with or without delimeter) is not specified, globe icon will be loaded.
 social:
   GitHub: https://github.com/JaneLdq || github
-  E-Mail: mailto:janeldq95@gmail.com || envelope
+  E-Mail: mailto:janeldq@163.com || envelope
   #Google: https://plus.google.com/yourname || google
   #Twitter: https://twitter.com/yourname || twitter
   #FB Page: https://www.facebook.com/yourname || facebook
@@ -150,7 +150,7 @@ links_layout: block
 #links_layout: inline
 links:
   卡斯奈: https://kasswang.cn/
-  七秒悲伤: http://1016990109.github.io/
+  七秒悲伤: https://1016990109.github.io/
 
 # Sidebar Avatar
 # in theme directory(source/images): /images/avatar.gif
