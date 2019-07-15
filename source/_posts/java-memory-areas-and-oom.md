@@ -132,11 +132,9 @@ public class RuntimeConstantPoolOOM {
     }
 }
 ```
-在 JDK6 及之前的版本，方法区是被分配到永久代中的，可以通过 JVM 参数 `-XX:PermSize` 和 `-XX:MaxPermSize` 来限制方法区的大小，从而间接限制常量池的容量。运行以上代码会抛出如下错误：
+在 JDK6 及之前的版本，方法区是被分配到永久代中的，可以通过 JVM 参数 `-XX:PermSize` 和 `-XX:MaxPermSize` 来限制方法区的大小，从而间接限制常量池的容量。据说运行以上代码会抛出如下错误（古早的JDK版本已经Oracle不给下载了，本来还想跑一下看看的）：
 ```java
 Exception in thread "main" java.lang.OutOfMemoryError: PermGen space
-    ...
-    at oom.RuntimeConstantPoolOOM.main(RuntimeConstantPoolOOM.java:15)
 ```
 **"PermGen space"** 说明运行时常量池属于方法区（JDK6 JVM中的永久代）。
 但是在 JDK7 及之后，HotSpot JVM 开始逐步取缔“永久代”，到 JDK8 就被彻底移除了，由新引入的“元空间” (Metaspace)接替它的角色。
@@ -171,10 +169,14 @@ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
 
 ---
 ## 直接内存
-直接内存 (Direct Memory) 并不是 JVM 运行时数据区的一部分，也不是 JVM 规范中定义的内存区域，不过由于这部分内存也被频繁使用，既然都是内存，就稍微提一下，先留个印象。
+直接内存 (Direct Memory) 并不是 JVM 运行时数据区的一部分，也不是 JVM 规范中定义的内存区域，不过由于这部分内存也被频繁使用，既然都是内存，就稍微提一下。
 直接内存由 NIO 类引入，它可以使用 Native 函数库**直接分配堆外内存**，然后通过存储在 Java 堆中的 `DirectByteBuffer` 对象引用这块内存进行操作。
 直接内存的分配不受 Java 堆大小的限制，但是会**受本机总内存大小和处理器寻址空间的限制**。
 在配置虚拟机参数时，如果忽略了直接内存，容易使得各个内存区域总和大于物理内存限制，导致动态扩展时出现 OutOfMemoryError。
+
+* 「提问」NIO 为什么要引入直接内存呢？
+事实上，`java.nio` 包中的 `ByteBuffer` 类有三个子类: `HeapByteBuffer`、`DirectByteBuffer` 和 `MappedByteBuffer`。顾名思义，`HeapByteBuffer`就是采用的直接分配堆内存的方式。那么为什么还要提供另外两个采用分配直接内存的实现类呢？
+// TODO
 
 ---
 
