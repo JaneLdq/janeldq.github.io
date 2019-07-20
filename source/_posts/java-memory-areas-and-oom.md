@@ -176,8 +176,8 @@ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
 
 ### 为什么要引入直接内存呢？
 
-`java.nio` 包中的 `ByteBuffer` 类有三个子类: `HeapByteBuffer`、`DirectByteBuffer` 和 `MappedByteBuffer`。顾名思义，`HeapByteBuffer`就是采用的从堆中分配内存的方式，那么为什么还要提供另外两个采用分配直接内存的实现类呢？
-要回答这个问题，要从操作系统的I/O操作说起。操作系统的读写操作都是基于一块连续的字节序列 (contiguous sequence of bytes)，但是一个 `byte[]` 在堆上的会是一块连续的空间吗？并不一定，按照 JVM 规范中的描述，堆的物理实现都可以是不连续的，那这就无法保证堆上的字节数组一定会在一个连续空间里了。虽然 JVM 把一个一维字节数组分开存储的可能性不大，但是Java堆仍是不能被原生的I/O直接操作的，得先把堆上的数据拷贝到原始内存 (native memeory) 上，，才能执行I/O操作。这样效率就很低啦，**直接内存**的出现就是为了提高这类操作的效率。
+`java.nio` 包中的 `ByteBuffer` 类有三个子类: `HeapByteBuffer`、`DirectByteBuffer` 和 `MappedByteBuffer`。顾名思义，`HeapByteBuffer`采用的从堆中分配内存的方式，其本质就是封装了一个 `byte[]`。那么为什么还要提供另外两个采用分配直接内存的实现类呢？
+要回答这个问题，要从操作系统的I/O操作说起。操作系统的读写操作都是基于一块连续的空间 (contiguous sequence of bytes)，但是一个 `byte[]` 在堆上的会是一块连续的空间吗？并不一定，按照 JVM 规范中的描述，堆的物理实现都可以是不连续的，那这就无法保证堆上的字节数组一定会在一个连续空间里了。虽然 JVM 把一个一维字节数组分开存储的可能性不大，但是Java堆仍是不能被原生的I/O直接操作的，得先把堆上的数据拷贝到本机内存 (native memeory) 上，才能执行操作系统级的I/O操作。这样效率就低了很多，**直接内存**的出现就是为了提高这类操作的效率。
 
 ---
 
