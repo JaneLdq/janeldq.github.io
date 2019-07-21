@@ -190,7 +190,7 @@ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
 
 ---
 
-* **参考资料**
+**参考资料**
 * 深入理解 Java 虚拟机（第二版）
 * [The Java® Virtual Machine Specification (Java SE 12 Edition)][2]
 * [Understand the OutOfMemoryError Exception][3]
@@ -200,36 +200,3 @@ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
   [2]: https://docs.oracle.com/javase/specs/jvms/se12/html/index.html
   [3]: https://docs.oracle.com/en/java/javase/12/troubleshoot/troubleshoot-memory-leaks.html
   [4]: https://www.fusion-reactor.com/evangelism/understanding-java-buffer-pool-memory-space/
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
