@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（二）引用计数法
+title: GC算法梳理（三）复制算法
 date: 2019-07-28 16:13:54
 categories: 技术笔记
 tags: GC
@@ -197,7 +197,7 @@ W.R. Stoye、T.J.W Clark 和 A.C.Norman 在 *Some Practical Methods for Rapid Co
 * 1 表示状态 **MULTIPLE**，即引用数大于等于2
 
 然后通过更新指针进行内存管理，只不过是通过复制指针的方式来更新指针：
-```
+```c++
 copy_ptr(dest_ptr, src_ptr) {
     // 先尝试回收dest_ptr指向的对象
     delete_ptr(dest_ptr)
