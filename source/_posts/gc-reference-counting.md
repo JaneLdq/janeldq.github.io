@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（三）复制算法
+title: GC算法梳理（二）引用计数法
 date: 2019-07-28 16:13:54
 categories: 技术笔记
 tags: GC
