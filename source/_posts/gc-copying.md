@@ -82,15 +82,66 @@ copy(obj) {
 
 ---
 # Cheney 复制算法
-// TODO 画图真费时间啊
+Cheney提出的复制算法采用迭代的方式进行复制，具体思路如下所示：
+```C++
+copying() {
+    // scan是用于搜索复制完成的对象的指针，$free是指向To空间分块开头的指针
+    scan = $free = $to_start
+    // 首先复制所有的roots
+    for (r: $root) {
+        *r = copy(*r)
+    }
 
+    // 然后从已经复制到To空间的对象开始复制它们引用的子对象
+    while (scan != $free) {
+        for (child: children(scan)) {
+            *child = copy(*child)
+        }
+        // 向前移动scan指针，指向下一个已经复制到To空间的对象
+        scan += scan.size
+    }
 
+    // 交换From和To空间
+    swap($from_start, $to_start)
+}
 
+copy(obj) {
+    // 检查obj.forwarding指针是否指向To空间，如果是，说明该对象已经被复制过，直接返回其forwarding指针
+    // 否则进行复制
+    if (is_not_pointer_to_heap(obj.forwarding, $to_start)) {
+        copy_data($free, obj, obj.size)
+        obj.forwarding = $free
+        $free += obj.size
+    }
+    return obj.forwarding
+}
+```
 
+Cheney算法其实质其实就是**广度优先遍历**：
+* 新引入的 **scan** 指针和 **$free** 指针组成了一个 **FIFO队列**（**scan** 指向队首，**$free** 指向队尾）；
+* 首先将所有 GC Roots 依次复制并加入队列（**scan**保持不动，**$free**移到下一个空闲分块）；
+* GC Root复制完成后，移动 **scan** 指针从队列中依次读取被复制的对象，遍历其引用的子对象，完成复制并加入队列（整个过程中 **scan** 每前进一次， **$free** 可能前进零次或 N 次，取决于是否有引用子对象）；
+* 直到 **scan** 和 **$free** 相遇，说明队列为空，复制结束。
 
+---
+## 优点
+* **迭代算法**，消除了递归调用函数的额外负担和栈的消耗
+* **直接将堆空间用作队列**，省去了额外内存空间开销
 
+---
+## 缺点
+* 由于广度优先遍历的特点，Cheney复制算法中无法将有引用关系的对象复制到相邻的位置，无法充分利用缓存。
 
+---
 
+总结一下，GC 复制算法最主要的优势在于它消除了碎片化，连续空间有利于高速分配，而代价是牺牲了一半的堆空间，降低了堆空间的利用率。
+
+---
+
+**参考资料**
+* 垃圾回收的算法与实现
+* Robert R. Fenichel, Jerome C. Yochelson, *A LISP Garbage-Collector for Virtual-Memory Computer Systems*, 1969
+* C. J. Cheney, *A Nonrecursive List Compacting Algorithm*, 1970
 
   [1]:/uploads/images/copying-gc.svg
   [2]:/uploads/images/recursive-copying-gc.png
