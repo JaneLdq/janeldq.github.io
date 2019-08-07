@@ -5,7 +5,7 @@ categories: 技术笔记
 tags: GC
 ---
 
-前面我们提到 GC 算法的基本类型无非**标记-清除**、**引用计数**和**复制**算法三类，那么这篇笔记中介绍的**标记-整理 (Mark-Compact)**算法就开始将 **标记-清除** 算法与**复制**算法结合的产物。不同于复制算法是从一个空间往另一个空间复制，标记-整理算法是在整个堆上**原地整理**，因此也提高了堆的利用率。
+前面我们提到 GC 算法的基本类型无非**标记-清除**、**引用计数**和**复制**算法三类，那么这篇笔记中介绍的**标记-整理 (Mark-Compact)** 算法就开始将 **标记-清除** 算法与**复制**算法结合的产物。不同于复制算法是从一个空间往另一个空间复制，标记-整理算法是在整个堆上**原地整理**，因此也提高了堆的利用率。
 
 标记-整理算法的思路也很简单，分为两个阶段：
 * **标记阶段** - 与标记-清除算法中的标记阶段一样，遍历堆上的对象，标记出活动对象。
@@ -23,7 +23,76 @@ tags: GC
 
 ---
 # Lisp2 算法
-// TODO
+Lisp2 算法是由 Donald E. Knuth提出来的。Lisp2 算法属于滑动顺序整理算法。
+该算法有个前提，即要在对象头里为 forwarding 指针专门留出空间。
+Lisp2 算法的整理阶段由三次遍历完成：
+1. 第一次遍历，**设定 forwarding 指针**
+2. 第二次遍历，**更新指针**
+3. 第三次遍历，**移动对象**
+
+下面来看一下代码：
+```c++
+lisp2_compact() {
+    set_forwarding_ptr()
+    adjust_ptr()
+    move_obj()
+}
+
+set_forwarding_ptr() {
+    // scan用来遍历堆中的对象，new_address指向对象移动到的新地址
+    scan = new_address = $heap_start
+    while (scan < $head_end) {
+        if (scan.mark == TRUE) {
+            scan.forwarding = new_address
+            new_address += scan.size
+        }
+        scan += scan.size
+    }
+}
+
+adjust_ptr() {
+    // 重写roots的指针
+    for (r: $roots) {
+        *r = (*r).forwarding
+    }
+
+    scan = $heap_start
+    while (scan < $heap_end) {
+        // 第二次遍历堆，重写所有活动对象的指针
+        if (scan.mark == TRUE) {
+            for (child: children(scan)) {
+                *child = (*child).forwarding
+            }
+        }
+        scan += scan.size
+    }
+}
+
+move_obj() {
+    scan = $free = $heap_start
+    while (scan < $heap_end) {
+        // 第三次遍历堆，找到活动对象并将其移动到forwarding指针指定的地方
+        if (scan.mark == TRUE) {
+            new_address = scan.forwarding
+            copy_data(new_address, scan, scan.size)
+            new_address.forwarding = NULL
+            new_address.mark = FALSE
+            $free += new_address.size
+            scan += scan.size
+        }
+    }
+}
+```
+
+值得一提的是，在 GC 复制算法中把对象从 From 空间复制到 To 空间后，可以复用 From 空间中原对象的域来保存 forwarding 指针，但是在 Lisp2 算法中，是在同一个空间中移动对象，所以就有可能出现把移动前的对象覆盖的情况，因此在移动对象前要事先将各个对象的指针全部更新到新的地址。（这一点存疑，既然从后往前移动对象，在覆盖之前所有对象的域不都已经移动完毕了吗，按道理来讲应该是不用担心被覆盖的问题的？只能说这样子更保险一点？）
+
+---
+## 优点
+* 可有效利用堆
+
+---
+## 缺点
+* 整理阶段要进行三次遍历，计算成本大
 
 ---
 # Two-Finger 算法
@@ -35,7 +104,7 @@ Two-Finger 算法的整理阶段由两次遍历完成：
 
 我们来看一下代码，这里假设堆上对象大小固定为 `OBJ_SIZE`：
 ```c++
-compact() {
+two_finger_compact() {
     move_obj()
     adjust_ptr()
 }
