@@ -231,7 +231,7 @@ delete_ptr(ptr) {
 ---
 
 **参考资料**
-* 垃圾回收的算法与实现
+* *垃圾回收的算法与实现*
 * [Reference Counting][4]
 * [An Efficient, Incremental, Automatic Garbage Collector][3]
 

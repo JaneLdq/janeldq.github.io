@@ -151,7 +151,7 @@ Cheney算法其实质其实就是**广度优先遍历**：
 ---
 
 **参考资料**
-* 垃圾回收的算法与实现
+* *垃圾回收的算法与实现*
 * Robert R. Fenichel, Jerome C. Yochelson, *A LISP Garbage-Collector for Virtual-Memory Computer Systems*, 1969
 * C. J. Cheney, *A Nonrecursive List Compacting Algorithm*, 1970
 

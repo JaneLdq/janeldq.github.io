@@ -191,7 +191,7 @@ Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
 ---
 
 **参考资料**
-* 深入理解 Java 虚拟机（第二版）
+* *深入理解 Java 虚拟机（第二版）*
 * [The Java® Virtual Machine Specification (Java SE 12 Edition)][2]
 * [Understand the OutOfMemoryError Exception][3]
 * [Understanding Java Buffer Pool Memory Space][4]
