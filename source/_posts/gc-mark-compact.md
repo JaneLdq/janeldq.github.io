@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（四）标记-整理算法
+title: GC算法笔记（四）标记-整理算法
 date: 2019-08-06 19:32:20
 categories: 技术笔记
 tags: GC

@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（三）复制算法
+title: GC算法笔记（三）复制算法
 date: 2019-07-31 19:50:57
 categories: 技术笔记
 tags: GC

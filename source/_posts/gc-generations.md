@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（六）堆分区与分代垃圾回收
+title: GC算法笔记（六）堆分区与分代垃圾回收
 date: 2019-08-15 14:48:07
 categories: 技术笔记
 tags: GC
@@ -48,30 +48,207 @@ tags: GC
 
 ---
 ## 新生代与老年代
-分代垃圾回收按照对象的年龄 (age) 将其划分为不同的分代，同时将不同分代的对象置于堆中的不停区域。回收器会优先回收年轻代，对象的年龄随从垃圾回收中存活的次数递增，当年轻代中的对象年龄达到一定阈值，将被提升 (promote) 到更老的一代。
+分代垃圾回收按照对象的年龄 (age) 将其划分为不同的分代，同时将不同分代的对象置于堆中的不同区域。回收器会优先回收新生代，对象的年龄随从垃圾回收中存活的次数递增，当年新生代中的对象年龄达到一定阈值，将被提升 (promote) 到更老的一代。
 
 **一些术语**
 * **新生代 GC (Minor GC)** - 在新生代中执行的 GC
 * **对象提升 (Promotion)** - 将新生代中的对象提升为老年代对象的过程
 * **老年代 GC (Major GC)** - 在老年代中执行的 GC
 
-下面我们将介绍由 David Ungar 于 1984 年在文章 *Generation Scavenging: A Non-disruptlve High Perfornm.nce
-Storage Reclamation Algorithm* 中提出的分代回收算法。
+下面我们将介绍由 David Ungar 于 1984 年在文章 *Generation Scavenging: A Non-disruptlve High Perfornmance Storage Reclamation Algorithm* 中提出的分代回收算法。
 ---
 ## Ungar 的分代垃圾回收
 Ungar 提出的分代垃圾回收将堆分为4个空间，三个用于新生代，一个用于老年代，它们分别是：
-* NewSpace - 用于创建对象的空间，也就是进行分配的空间
-* PastSurvivorSpace - 保存上一次 Minor GC 后存活的对象，相当于复制 GC 中的 From 空间
-* FutureSurvivorSpace - 一个空的空间，相当于复制 GC 中的 To 空间
-* OldSpace - 存放老年代对象的空间
+* **NewSpace** - 用于创建对象的空间，也就是进行分配的空间
+* **PastSurvivorSpace** - 保存上一次 Minor GC 后存活的对象，相当于复制 GC 中的 From 空间
+* **FutureSurvivorSpace** - 一个空的空间，相当于复制 GC 中的 To 空间
+* **OldSpace** - 存放老年代对象的空间
 
 NewSpace 通常是 SurvivorSpace 的 N 倍，根据弱分代假说，绝大多数 NewSpace 中的对象都会死亡，因此这样分配空间有利于提高堆空间利用率。
 
-执行新生代 GC 会将 NewSpace 和 PastSurvivorSpace 中的活动对象复制到 FutureSurvivorSpace 中，然后清除这两个空间，最后将 PastSurvivorSpace 和 FutureSurvivorSpace交换，跟复制 GC 是一样的。
+执行新生代 GC 会将 NewSpace 和 PastSurvivorSpace 中的活动对象复制到 FutureSurvivorSpace 中，然后清除这两个空间，最后将 PastSurvivorSpace 和 FutureSurvivorSpace交换，跟复制 GC 是一样的。这一过程中，如果发现新生代对象已经经历了一定次数的新生代 GC，它就会得到晋升，被复制到老年代中去。如果老年代空间也满了，那就要执行老年代 GC。老年代 GC 可以采用标记-清除算法。
 
-这一过程中，如果发现新生代对象已经经历了一定次数的新生代 GC，它就会得到晋升，被复制到老年代中去。（小菜鸟变身老油条啦~ (ノ￣▽￣)
+虽然新生代和老年代被分开进行回收，但对象间的引用却是交叉存在于两个分代间的。那么当进行新生代 GC 时，除了要复制由 GC Roots 引用的对象外，被老年代中的对象引用的新生代对象也属于活动对象。那么，要如何管理这二者之间的引用关系呢？
 
-如果老年代空间也满了，那就要执行老年代 GC。老年代 GC 可以采用标记-清除算法。
+为了解决这个问题，需要引入两个新概念：**记录集 (Remembered Set)** 和**写屏障 (Write Barrier)**。
 
 ---
-### Remembered Set 记录集
+### 记录集
+记录集 (Remembered Set) 用来**记录老年代中引用了新生代中对象的对象**，注意，这里记录的是引用方，而不是被引用方。
+
+为什么不反过来记录被引用的对象呢？
+
+试想一下，如果记录集中保存的是被引用的对象，一旦这个对象被提升为老年代，就没办法更新老年代中引用它的指针了。因为记录集中没有存储“某老年代对象 A 引用了某新生代对象 B”这一信息。反过来，如果记录的是老年代中的引用方，就不存在这个问题了。
+
+---
+### 写屏障
+以下定义摘自维基百科：
+> A write barrier in a garbage collector is a fragment of code emitted by the compiler immediately before every store operation to ensure that generational invariants are maintained.
+
+通过写屏障我们将老年代中引用了新生代对象的对象记录到记录集里。
+
+伪码如下：
+```c
+write_barrier(obj, new_obj, field) {
+    // 检查引用方是否老年代对象，检查被引用方是否新生代对象
+    // 如果老年代对象尚未被加入记录集，则将其加入
+    if (is_old_gen(obj) && is_young_gen(new_obj) && obj.remembered == FALSE) {
+        remembered_set.add(obj)
+        obj.remembered = TRUE
+    }
+    // 更新指针
+    update_field(obj, new_obj, field)
+}
+```
+
+---
+### 对象结构
+在 Ungar 的分代垃圾回收中，对象的头部要添加如下信息：
+* **对象的年龄 (age)** - 表示对象从新生代 GC 中存活下来的次数，当这个值超过一定次数，该对象就会被提升到老年代
+* **复制完毕的标志 (forwarded)** - 用于防止在 GC 时重复复制的标志
+* **添加到记录集的标志 (remembered)** - 用于防止向记录集中重复记录的标志 （只用于老年代对象，而另外两个只用于新生代对象）
+
+---
+### 算法伪码
+Ungar 分代垃圾回收算法伪码如下 （摘自*《垃圾回收的算法与实现》*）：
+为新对象分配空间：
+```c
+new_obj(size) {
+    // $new_free指向NewSpace空闲分块，如果空间不够则进行一次新生代GC
+    if ($new_free + size >= $survivor1_start) {
+        minor_gc()
+        // 如果还不够，则空间不足，分配失败。当然，更复杂的做法，也可以考虑将对象分配到老年代空间
+        if ($new_free + size >= $survivor1_start) {
+            allocation_fail()
+        }
+    }
+    // 分配成功，进行对象初始化操作
+    obj = $new_free
+    $new_free += size
+    obj.age = 0
+    obj.forwarded = FALSE
+    obj.remembered = FALSE
+    obj.size = size
+    return obj
+}
+```
+新生代 GC：
+```c
+minor_gc() {
+    $to_survivor_free = $to_survivor_start
+    // 复制所有不在老年代中的GC Roots
+    for (r: $roots) {
+        if (*r < $old_start) {
+            *r = copy(*r)
+        }
+    }
+    i = 0
+    while (i < $rs_index) {
+        // 用于判断当前这个记录集的对象是否还有引用新生代对象
+        has_new_obj = FALSE
+        // 遍历记录集，复制被老年代对象引用的新生代对象
+        for (child: children($rs[i])) {
+            // 检查该对象是否已经提升到老年代空间，如果没有，则进行复制并设置标志位
+            if (*child < $old_start) {
+                *child = copy(*child)
+                if (*child < $old_start) {
+                    has_new_obj = TRUE
+                }
+            }
+        }
+        // 如果没有引用新生代对象，则将其从记录集中移除
+        if (has_new_obj == FALSE) {
+            $rs[i].remembered = FALSE
+            $rs_index--
+            swap($rs[i], $rs[$rs_index])
+        } else {
+            i++
+        }
+    }
+    // From空间与To空间互换
+    swap($from_survivor_start, $to_survivor_start)
+}
+
+copy(obj) {
+    if (obj.forwarded == FALSE) {
+        // 如果对象还够年轻，则将其从NewSpace或From空间复制到To空间
+        if (obj.age < AGE_MAX) {
+            copy_data($to_survivor_free, obj, obj.size)
+            obj.forwarded = TRUE
+            obj.forwarding = $to_survivor_free
+            // 经历了一次新生代GC，别忘了年龄也要递增
+            $to_survivor_free.age++
+            $to_survivor_free += obj.size
+            for (child: children(obj)) {
+                *child = copy(*child)
+            }
+        } else {
+            // 否则将它提升到老年代
+            promote(obj)
+        }
+    }
+    return obj.forwarding
+}
+```
+将新生代对象提升到老年代：
+```c
+promote(obj) {
+    // 首先在老年代中为对象分配空间
+    new_obj = allocation_in_old(obj)
+    // 如果分配失败，则执行老年代GC，如果还失败，那就是真的没空间了，分配失败
+    if (new_obj == NULL) {
+        major_gc()
+        new_obj = allocation_in_old(obj)
+        if (new_obj == NULL) {
+            allocation_fail()
+        }
+    }
+    obj.forwarding = new_obj
+    obj.forwarded = TRUE
+    for (child: children(obj)) {
+        // 如果这个被提升的对象有引用新生代的对象，那么记得把它加到记录集中
+        if (*child < $old_start) {
+            $rs[$rs_index] = new_obj
+            $rs_index++
+            new_obj.remembered = TRUE
+            return
+        }
+    }
+}
+```
+
+---
+## 多分代
+除了简单的划分新生代与老年代之外，也可根据对象的生命周期分布划分更多的中间代。如果相当一部分新生代对象会活过新生代回收，但是在被提升到老年代之后不久便死亡，则可以增加中间分代。不过实际应用中，大多数系统都只提供两个分代外加一个永久对象分代。毕竟分代越多，每个分代的空间会被小，各代之间的引用变多变复杂，垃圾回收过程也更复杂，时间开销不一定会更少。
+
+---
+## 分代回收的优缺点
+### 优点
+* **提升程序的整体吞吐量** - 生命周期长的对象的处理频率低，减少了处理开销，并且使得中年对象有足够的时间达到死亡而不需要对其进行追踪；分代回收在为新对象分配时通常采用顺序分配策略，内存访问模式的可预测性提升了程序的局部性，且大多数写操作是针对新生代发生的，赋值器的局部性也得到了提升。
+
+### 缺点
+* **性能表现严重依赖程序中对象的生命周期分布** - 如果新生代对象的死亡率不够高，则分代回收策略可能就不再适用了。
+* **无法避免整堆回收，因此无法降低最大停顿时间** - 不能满足对回收停顿时间有最大值限制的硬实时（hard real-time) 回收要求。 
+
+---
+
+分代垃圾回收的策略只是进行堆区分以提升回收效率的方式之一，不过也是目前使用最为广泛的分区策略。除此之外还有很多其他的分区策略。甚至是分代策略自身也有很多需要考虑的细节。
+
+不得不说，《垃圾回收算法手册：自动内存管理的艺术》这本书涉猎得内容很深且广，很多章节之间会有跳跃着的关联，而且作者经常就着一个小话题会给出很多相关的论文或观点，不愧是被称之为艺术的话题。相比之下《垃圾回收的算法与实现》这本书对小白更友好一些，介绍的都是算法最基础的思路和实现。两本书的阅读难度系数完全不是一个档次，前者对于我目前的水平还是有点消化不了。
+
+---
+
+**参考资料**
+* *垃圾回收的算法与实现*
+* *垃圾回收算法手册：自动内存管理的艺术*
+* David Ungar, *Generation Scavenging: A Non-disruptlve High Perfornmance Storage Reclamation Algorithm*, 1984
+* [Write Barrier - Wiki][1]
+
+  [1]: https://en.wikipedia.org/wiki/Write_barrier
+
+
+
+
+
+
+

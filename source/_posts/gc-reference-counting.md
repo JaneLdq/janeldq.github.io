@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（二）引用计数法
+title: GC算法笔记（二）引用计数法
 date: 2019-07-28 16:13:54
 categories: 技术笔记
 tags: GC
@@ -236,13 +236,12 @@ delete_ptr(ptr) {
 
 **参考资料**
 * *垃圾回收的算法与实现*
-* [Reference Counting][4]
-* [An Efficient, Incremental, Automatic Garbage Collector][3]
+* [Reference Counting][3]
+* L. Peter Deutsch and Daniel G. Bobrow, *An Efficient, Incremental, Automatic Garbage Collector*, 1976
 
   [1]:https://en.wikipedia.org/wiki/L._Peter_Deutsch
   [2]:https://en.wikipedia.org/wiki/Daniel_G._Bobrow
-  [3]:https://people.cs.umass.edu/~emery/classes/cmpsci691s-fall2004/papers/p522-deutsch.pdf
-  [4]:https://en.wikipedia.org/wiki/Reference_counting
+  [3]:https://en.wikipedia.org/wiki/Reference_counting
 
 
 

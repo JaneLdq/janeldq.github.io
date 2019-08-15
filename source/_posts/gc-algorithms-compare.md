@@ -1,5 +1,5 @@
 ---
-title: GC算法梳理（五）概括与比较
+title: GC算法笔记（五）概括与比较
 date: 2019-08-09 13:47:03
 categories: 技术笔记
 tags: GC
