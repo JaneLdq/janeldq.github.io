@@ -43,3 +43,37 @@ public final class StringUtils {
 ```
 
 像 `java.lang.System`， `java.lang.Math` 这些类都遵循以上两点哦～
+
+---
+# 使用 Lombok @UtilityClass 注解
+除了自己实现 Util 类时注意加上 final 关键字和私有构造函数，第三方库 [Lombok][1] 中也提供了一个便捷的注解 [**@UtilityClass**][2]。
+这个注解帮我们做了以上两件事，除此之外它还会将所有类中的方法加上 `static` 修饰符。
+
+使用 `@UtilityClass`，上面的例子可以改写为如下这样：
+```java
+import lombok.experimental.UtilityClass;
+
+@UtilityClass
+public class StringUtils { // 类声明中的 final 修饰符可以省去，也不需要再自己写一个 private 构造函数
+
+    public static final String EMPTY = "";
+
+    // 方法声明中可以省去 static 关键字
+    public boolean isEmpty(Object str) {
+        return (str == null || "".equals(str));
+    }
+
+}
+```
+
+---
+
+**参考资料**
+
+* [What is the best way to write utility classes in Java?][3]
+* [SonarSource Rules - Utility classes should not have public constructors][4]
+
+  [1]: https://projectlombok.org/
+  [2]: https://projectlombok.org/features/experimental/UtilityClass
+  [3]: https://www.quora.com/What-is-the-best-way-to-write-utility-classes-in-Java
+  [4]: https://rules.sonarsource.com/java/tag/design/RSPEC-1118
