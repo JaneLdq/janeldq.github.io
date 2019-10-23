@@ -30,7 +30,7 @@ OAuth 的出现就是为了解决这些问题。OAuth 并不是框架或工具�
 
 <!--more-->
 ---
-## OAuth 2.0 中的 4 类角色
+## OAuth 2.0 中的角色
 就好比在面向对象的编程中，我们要先抽象出对象，在应用授权的场景中，我们也要先划分出不同的角色。
 OAuth 2.0 定义了如下四种角色：
 
@@ -54,7 +54,7 @@ OAuth 2.0 定义了如下四种角色：
 上面又提到了两个新的概念，`Authorization Grant` 和 `Access Token`，要讲清楚 `Authorization Grant` 就必须先弄懂 `Access Token`。
 
 ---
-## OAuth 2.0 中的 2 类 Token
+## Access Token & Refres Token
 事实上，OAuth 2.0 中定义了两种 Token，一种是 `Access Token`，另一种是 `Refresh Token`。
 
 ### Access Token
@@ -70,24 +70,23 @@ OAuth 通过 `Access Token` 在授权过程中增加了一个授权层（Authori
 🌟 **资源服务器如何验证一个 Access Token 是合法的呢？**
 🌟 **资源服务器和授权服务器之间的信任如何建立？**
 
->  An access token is a string representing an authorization issued to the client. ... Tokens
-   represent specific scopes and durations of access, granted by the
-   resource owner, and enforced by the resource server and authorization
-   server.(from RFC 6749)
+>  An access token is a string representing an authorization issued to the client. ... Tokens represent specific scopes and durations of access, granted by the resource owner, and enforced by the resource server and authorization server. (RFC 6749 #section-1.4 )
 
 从官方定义上来看，`Access Token` 是一个**字符串**，至少要提供关于**客户端的基本信息**（通常是客户端的ID）和该客户端**获得的权限**，权限由一组 `scopes` 表示，并且 `Access Token` 是有有效期的。
 
 至于 Access Token 的具体格式、这些内容究竟是如何获得：是 `Access Token` 自包含的（self-contain）内容呢？还是 `Access Token` 只提供一个标识符，然后利用这个标识符再通过某种方式来获取呢？OAuth 2.0 (RFC6749) 里没有规定。
 
 常见的方式如下：
-* **Signed JWT Bearer Token** - 所有需要勇于验证合法性的内容都包含在 token 自身里了，包括但不限于用户信息、客户端信息、scope 等。这种方式要求资源服务器能通过 `Access Token` 的签名（授权服务器进行数字签名）来验证其确实是来自可信任的授权服务器。
+* **Signed JWT Bearer Token** - 所有需要勇于验证合法性的内容都包含在 token 自身里了，包括但不限于用户信息、客户端信息、scope 等。这种方式要求资源服务器能通过 `Access Token` 的签名（授权服务器进行数字签名）来验证其确实是来自可信任的授权服务器。这种情况可能需要在资源服务器上注册授权服务器的证书。
 
 * **共享数据库** - 对于小型应用，资源服务器和授权服务器通常是同一个服务器，此时它们之间自然不存在信任问题，而且还能直接内部共享 Token 的信息，比如共享数据库。
 
 * **通过 Token Introspection Endpoint** - 这是一个OAuth 2.0 的扩展协议（[RFC7662](https://tools.ietf.org/html/rfc7662)），由授权服务器开放一个用于验证和解析 `Access Token` 的接口供资源管理器调用。
 
+总而言之，OAuth 2.0 没有明确规定资源服务器和授权服务器之间的信任如何建立，这取决于具体应用的安全性需求和开发人员的选择。
 
-#### Scope
+---
+#### Scopes
 我们在前文提到，传统的用户名密码授权方式问题之一就是权限过大，一旦拥有了用户的用户名密码，客户端理论上可以访问所有该用户能访问的资源。然而，这并不是我们想要的。我们希望只给客户端授予必要的最小权限，那么 `scope` 就是 OAuth 中用来达到这一目的存在。
 
 `scope` 由资源服务器来定义，比如最简单的 `sample.read`、`sample.write` 这类，在授权时，用户可以选择只授予某个客户端 `sample.read` 的 `scope` 而给另一个客户端授予 `sample.write` 的权限。
@@ -99,8 +98,43 @@ OAuth 通过 `Access Token` 在授权过程中增加了一个授权层（Authori
 `Refresh Token` 是可选项，如果授权服务器生成了 `Refresh Token`，它会与 `Access Token` 一起返回给客户端。
 
 ---
+## 客户端的分类与注册
+我想在介绍 `Authorization Grant` 之前先提一下 OAuth 2.0 中的客户端的分类和客户端注册。
 
-未完待续...
+### Public & Confidential 客户端
+OAuth 2.0 将客户端分为两类：
+* **Confidential** - 指具有自己维护客户端认证凭证（client credentials）安全能力的客户端，比如运行在受访问限制的服务器上的 web 应用，用户只能通过浏览器访问应用提供的HTML用户界面，并不会接触到客户端认证凭证。
+
+* **Public** - 指不具备自己维护客户端认证凭证安全能力的客户端，比如运行在浏览器中的 Javascript 应用或运行在移动设备上的 Native 应用，这些应用的源码都被下载或安装到了浏览器或设备上，认证凭证或协议相关的数据非常容易被获取到，因此是不安全的。
+
+---
+### 客户端注册
+在整个 OAuth 2.0 授权流程启动之前，客户端需要先向授权服务器注册。“注册”这个操作具体怎么实现，不在 OAuth 2.0 考虑的范围，它只规定了“注册”这个操作需要完成如下任务：
+* 指定该客户端的类型，public 或 confidential
+* 提供客户端重定向URI （redirect URI，关于这个在后文还会再提到）
+* 提供其他授权服务器要求的信息（比如客户端名字、网站、LOGO、描述等）
+
+注册成功后，授权服务器会为客户端生成 `client_id`，如果是 confidential 的客户端，还会生成一组 `client credentials` 用于认证。Client credential 可以是 password，也可以是 public/private key，具体方式取决于授权服务器对安全性的要求。
+
+---
+### 客户端认证
+OAuth 2.0 没有明确规定客户端的认证方式，这取决于应用的具体实现。
+对于采用 password 认证的客户端，可以采用 HTTP Basic 认证的方式，也可以将其作为 POST 请求的 request body 传送给授权服务器。
+
+除此之外，[OpenID](https://openid.net/specs/openid-connect-core-1_0.html) 作为一个基于 OAuth 2.0 的认证协议，其中也定义了多种客户端认证的方式，由于本系列笔记的重点在授权，在这里就不作展开了。
+
+---
+
+好了，到目前为止，我们接收了很多概念，包括：
+* OAuth 2.0 中定义的四个角色：**资源拥有者（用户）**、**客户端**、**授权服务器**和**资源服务器**
+* 客户端用于请求受保护资源的 **Access Token**，以及用于获取新 Access Token 的 **Refresh Token**
+* 用于限定授权范围的 **Scopes**
+* 客户端分为两类 - **public** 和 **confidential**
+* 我们还知道了**客户端需要提前向授权服务器注册**，授权服务器在生成 Access Token 之前要先进行**客户端认证**。
+
+当脑海中有了这些相对零散的基本概念后，下一步，就是将它们串联在一起，组成 OAuth 2.0 中最核心的部分 —— 四种授权类型。
+
+我们下文见~
 
 <!--
 
