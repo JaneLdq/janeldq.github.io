@@ -121,7 +121,7 @@ OAuth 2.0 将客户端分为两类：
 OAuth 2.0 没有明确规定客户端的认证方式，这取决于应用的具体实现。
 对于采用 password 认证的客户端，可以采用 HTTP Basic 认证的方式，也可以将其作为 POST 请求的 request body 传送给授权服务器。
 
-除此之外，[OpenID](https://openid.net/specs/openid-connect-core-1_0.html) 作为一个基于 OAuth 2.0 的认证协议，其中也定义了多种客户端认证的方式，由于本系列笔记的重点在授权，在这里就不作展开了。
+除此之外，[OpenID Connect](https://openid.net/specs/openid-connect-core-1_0.html) 作为一个基于 OAuth 2.0 的认证协议，其中也定义了多种客户端认证的方式，由于本系列笔记的重点在授权，在这里就不作展开了。
 
 ---
 
