@@ -1,5 +1,5 @@
 ---
-title: 使用 Spring Security OAuth 实现 OAuth 2.0 授权服务器（一）
+title: OAuth 2 实战（一）- 使用 Spring Security OAuth 实现授权服务器
 date: 2019-10-29 21:53:19
 categories: 技术笔记
 tags: Authorization
@@ -211,15 +211,13 @@ curl -X POST \
 
 ![Authorization Code Grant 4][5]
 
-用户同意部分授权，授权请求发送给服务器，服务器验证后生成授权码，并将其作为重定向 URL 参数传递给客户端：
+用户同意部分授权，授权请求发送给服务器，服务器验证后生成授权码，并将其作为重定向 URL 参数传递给客户端。可以看到，重定向 URL 为 `localhost:8081?code=OPfyhZ&state=1234`，正是我们在注册客户端时为其配置的重定向 URL。
 
 ![Authorization Code Grant 5][6]
 
-可以看到，重定向 URL 为 `localhost:8081?code=OPfyhZ&state=1234`，正是我们在注册客户端时为其配置的重定向 URL。
+之后客户端就可以使用授权码向授权服务器获取 Access Token。
 
-之后的操作，就是客户端使用授权码向授权服务器请求 Access Token 的流程了，那么关于这一部分，还需要哪些实现或配置呢？
-
-今天已经很晚啦，我们下文见吧～
+不过今天已经很晚啦，就把剩下的内容留到下一篇笔记吧～
 
 ---
 
