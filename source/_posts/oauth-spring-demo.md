@@ -1,15 +1,15 @@
 ---
-title: OAuth 2 实战（一）- 使用 Spring Security OAuth 实现授权服务器
+title: OAuth 2 实战（一）- 使用 Spring Security 实现资源服务器和授权服务器
 date: 2019-10-29 21:53:19
 categories: 技术笔记
 tags: Authorization
 ---
 
-上两篇笔记把 OAuth 2.0 基本的理论知识都介绍了一下，在本篇笔记中，就让我们一起来用 Spring Security 实现一个简单的 OAuth 2.0 授权服务器吧。
+上两篇笔记把 OAuth 2.0 基本的理论知识都介绍了一下，在本篇笔记中，就让我们一起来实现一个 OAuth 2.0  服务器吧，简单起见，这个服务器既承担**资源服务器**的角色，也承担**授权服务器**的角色。
 
-Spring Security 是 Spring 全家桶中提供的与安全相关一套框架。它对一般 Web 应用都需要的认证和授权这一块的功能进行了封装，使得在一个 Spring 项目中可以非常简便又灵活地根据自身的安全性需求搭建出一套认证和授权流程。
+我们使用 Spring Security 作为底层支持。Spring Security 是 Spring 全家桶中提供的与安全相关一套框架。它对一般 Web 应用都需要的认证和授权这一块的功能进行了封装，使得在一个 Spring 项目中可以非常简便又灵活地根据自身的安全性需求搭建出一套认证和授权流程。
 
-Spring Security OAuth 则是 Spring Security 提供的对 OAuth 的支持（ OAuth 1 和 OAuth 2 都支持）。具体的内容，就让我们边写边说吧～
+Spring Security OAuth 则是 Spring Security 提供的对 OAuth 的支持（ OAuth 1 和 OAuth 2 都支持）。
 
 <!--more-->
 ---
@@ -85,8 +85,11 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
 ```
 
 ---
-## Step 3 - 授权服务器配置
+
 我们知道 OAuth 2.0 中包含了两类服务器角色，一个是授权服务器，一个是资源服务器。针对这两类角色，Spring Security OAuth 分别提供了单独的启动和配置接口。
+
+---
+## Step 3 - 授权服务器配置
 
 通过使用 `@EnableAuthorizationServer` 注解，并实现 `AuthorizationServerConfigurer` 接口以完成授权服务器的配置，可以将应用实现为一个授权服务器。
 
@@ -173,8 +176,51 @@ public AuthenticationManager authenticationManagerBean() throws Exception {
 ```
 
 ---
-## Step 4 - 初见成果
-到此为止，我们实现一个授权服务器的基本工作就都完成了，此时启动应用，它就是一个运行中的授权服务器，默认运行在 `localhost:8080`。
+## Step 4 - 资源服务器配置
+通过使用 `@EnableResourceServer` 注解，并实现 `ResourceServerConfigurer` 接口以完成授权服务器的配置，可以将应用实现为一个资源服务器。
+
+资源服务器通过验证 Access Token 保护对资源的访问。因此，资源服务器最主要的配置内容就是访问控制。
+在 `ResourceServerConfigurer` 中提供了两个配置方法：
+* **ResourceServerSecurityConfigurer** - 用来配置所有跟资源服务器相关的内容，比如 `ResourceServerTokenServices`，`resourceId` 等。
+    * `ResourceServerTokenServices` - 对 Access Token 的解析和验证是由授权过程中非常重要的另一半工作，资源服务器将这部分工作交给 `ResourceServerTokenServices` 来做。对于资源服务器和授权服务器是同一台服务器的情况，我们基本不需要做额外的配置，Spring Security OAuth 默认注册了一个 `DefaultTokenServices` 实例。如果资源服务器和授权服务器不是同一台，那么我们就需要自己配置合适的 `ResourceServerTokenServices` 以保证资源服务器能“正确理解”授权服务器生成的 Access Token。`RemoteTokenServices` 是 Spring OAuth 提供的一个替代方式，它使得资源服务器可以向授权服务器发送一个 `/oauth/check_token` 请求来验证和解析 Access Token。
+* **HttpSecurity** - 用来配置对资源的访问控制规则。默认设置下，所有非 `/oauth/**` 路经下的资源都是被保护的。
+
+示例项目的资源服务器配置如下：
+```java
+@Configuration
+@EnableResourceServer
+public class ResourceServerConfig extends ResourceServerConfigurerAdapter {
+
+    private static final String DEMO_RESOURCE_ID = "demo";
+
+    @Override
+    public void configure(ResourceServerSecurityConfigurer resources) throws Exception {
+        resources.resourceId(DEMO_RESOURCE_ID).stateless(false);
+    }
+
+    @Override
+    public void configure(HttpSecurity http) throws Exception {
+        // @formatter:off
+        // Since we want the protected resources to be accessible in the UI as well we need
+        // session creation to be allowed (it's disabled by default in 2.0.6)
+        http.sessionManagement()
+                .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
+            .and()
+            .requestMatchers()
+                .antMatchers("/api/**")
+            .and()
+            .authorizeRequests()
+                .antMatchers("/api/**").access("#oauth2.hasScope('read') or (!#oauth2.isOAuth() and hasRole('ROLE_USER'))");
+        // @formatter:on
+    }
+}
+```
+
+我们对 `/api/**` 路经下的资源进行了保护，只有拥有 `read` scope 的客户端才被允许访问。
+
+---
+## Step 5 - 初见成果
+到此为止，我们实现基本工作就都完成了，此时启动应用，它就是一个运行中的授权兼资源服务器，默认运行在 `localhost:8080`。
 
 ### Resource Owner Password 授权
 敲入如下命令，我们就可以以 Resource Owner Password 授权的方式来获得 Access Token：
@@ -191,6 +237,9 @@ curl -X POST \
 
 返回结果如下图所示：
 ![OAuth Password Grant Type Response Screenshot][1]
+
+接下来，我们就可以将返回的 Access Token 放到请求的 Authorization 首部，以 Bearer Token 的形式来访问资源：
+![OAuth Access Token Request][8]
 
 ---
 ### Authorization Code 授权
@@ -215,18 +264,30 @@ curl -X POST \
 
 ![Authorization Code Grant 5][6]
 
-之后客户端就可以使用授权码向授权服务器获取 Access Token。
-
-不过今天已经很晚啦，就把剩下的内容留到下一篇笔记吧～
+到目前为止，localhost:8081 还只是一个普通的 Spring Boot 项目，我们还没有将其实现为 OAuth 2.0 客户端，所以它还不知道要怎么获取 Access Token。
 
 ---
 
-嗷，看来不能在出去玩耍之前结束这个系列了呢。（都是拖延症惹的祸 (；´Д\`A)
+可是，此刻真的很想提前体验一把完整的 **获得授权 - 获取 Access Token - 访问资源** 的这个过程呢，没关系，我们还有 Postman。
+
+使用 Postman 向资源服务器请求资源，并选择认证模式为 OAuth 2，然后我们可以在 Get New Access Token 里配置获取 Token 需要的信息，如下所示：
+![Postman Get Access Token Configuration][9]
+
+点击 Request Token 获取 Access Token，然后发送请求，Postman 就可以作为一个 OAuth 2 客户端访问我们的资源服务器了。
+结果如下图所示：
+![Postman as OAuth 2 Client][10]
+
+---
+
+到此为止，我们的 OAuth 2 服务器已经运转起来，那么，OAuth 2 客户端又要如何实现呢？
+
+未完待续～
 
 ---
 
 **参考资料**
 * [Spring - OAuth 2 Developers Guide](https://projects.spring.io/spring-security-oauth/docs/oauth2.html)
+* [How to Secure REST API using Spring Security and OAuth2 – part 3](http://sivatechlab.com/secure-rest-api-using-spring-security-oauth2-part-3/)
 
   [1]: /uploads/images/oauth-password-response.png
   [2]: /uploads/images/oauth-code-grant-1.png
@@ -235,6 +296,9 @@ curl -X POST \
   [5]: /uploads/images/oauth-code-grant-4.png
   [6]: /uploads/images/oauth-code-grant-5.png
   [7]: /uploads/images/oauth-code-grant-6.png
+  [8]: /uploads/images/oauth-request-resource.png
+  [9]: /uploads/images/oauth-postman-request-token.png
+  [10]: /uploads/images/oauth-postman-client.png
 
 
 
