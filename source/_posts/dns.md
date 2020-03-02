@@ -78,7 +78,9 @@ DNS 域名空间可以表示为一棵树，从根节点开始，依次是顶级�
 
 * **Authoritative DNS Servers 权威 DNS 服务器** - 每个对外提供公共访问的主机（例如Web服务器和邮件服务器）的机构 (Organizations)，都必须提供相应的主机名到IP地址的映射，即 DNS 资源记录。这些机构的权威 DNS 服务器保存这些 DNS 记录。每个机构可以选择实施自己的权威 DNS 服务器，也可以付费将这些记录在某个服务提供商的权威 DNS 服务器中。
 
-除此之外，还有一类特殊的 DNS 服务器，即**Local DNS Servers - 本地 DNS 服务器**。本地DNS服务器并不严格属于服务器的层次结构.每个ISP（比如Residential ISP /Institutional ISP ）都有本地 DNS 服务器。当主机连接到 ISP 时，ISP 为主机提供其一台或多台本地 DNS 服务器的 IP 地址。当主机进行 DNS 查询时，查询将发送到本地DNS服务器，该服务器充当代理，将查询转发到 DNS 服务器层次结构中。
+还有一类特殊的 DNS 服务器，即**Local DNS Servers - 本地 DNS 服务器**。本地 DNS 服务器并不严格属于服务器的层次结构.每个ISP（比如Residential ISP /Institutional ISP ）都有本地 DNS 服务器，包括很多大学、公司都有自己的 DNS 服务器。当主机连接到 ISP 时，ISP 为主机提供其一台或多台本地 DNS 服务器的 IP 地址。本地 DNS 服务器离用户较近，一般不超过几个路由器的距离。
+
+除此之外，现在还有很多平台提供了公共免费的域名解析服务，比如 Google 的 `8.8.8.8` 和 `8.8.4.4` 还有 Cloudflare 的 `1.1.1.1` 等。
 
 ---
 ### 域名解析
@@ -106,18 +108,18 @@ DNS 域名空间可以表示为一棵树，从根节点开始，依次是顶级�
 
 ---
 ### 查询机制
-我们看到上图图示中标示了两种查询机制，说明如下：
-* **迭代查询** - 本地 DNS 服务器向根域名服务器发送请求后，根域名服务器返回**部分结果**（error, the answer or referral）给本地 DNS 服务器，由本地 DNS 服务器继续负责后续解析。这个机制被称为迭代查询。
-    * 对于服务器来说，非递归查询是最简单的模式，因为它只需要返回本地有的信息就可以了。
-    * 所有的域名服务器都要实现非递归查询。
-* **递归查询** - 主机发送查询请求给本地 DNS 服务器后，由本地 DNS 服务器代替该主机处理域名解析工作，直到返回它所需的结果，这个结果是**完整结果**（error or the answer）。这个机制被称为递归查询。
+我们看到上图图示中标示了两种查询机制，结合这个例子说明如下：
+* **递归查询** - 主机发送查询请求给本地 DNS 服务器后，由本地 DNS 服务器代替该主机以 DNS 客户端的身份向其他域名服务器发送查询，即本地 DNS 服务器包揽了后续查询，直到得到它所需的结果，这个结果是**完整结果**，即要么是对应的资源记录，要么报错。这个机制被称为递归查询。
+* **迭代查询** - 本地 DNS 服务器向根域名服务器发送请求后，根域名服务器返回**部分结果**，这个结果可能是报错、也可能是对应的资源记录，还可能只是告诉本地 DNS 服务器下一步该向谁发起查询。然后本地 DNS 服务器要自己继续负责后续查询。这个机制被称为迭代查询。
 
 ---
 ## 解析器
-到目前为止，我们提到域名解析都是以主机为单位，而实际上真正发起 DNS 查询的应该是运行在主机上的应用程序（比如Email, FTP, TELNET）。那么，应用程序究竟如何向域名服务器发起请求呢？这就需要依赖 DNS 的第三大组件 —— **解析器 (Resolver)**。
-解析器一般以子程序 (Subroutine) 或系统调用 (System call) 的形式作为接口给应用程序调用，应用程序传参给解析器，解析器返回结果。
+到目前为止，我们提到域名解析都是以主机为单位，而实际上真正发起 DNS 查询的应该是运行在主机上的用户程序（比如Email, FTP, TELNET）。那么，用户程序究竟如何向域名服务器发起请求呢？这就需要依赖 DNS 的第三大组件 —— **解析器 (Resolver)**。
+解析器一般以子程序 (Subroutine) 或系统调用 (System call) 的形式作为接口给应用程序调用，应用程序传参给解析器，解析器返回结果，因此用户程序和解析器之间不需要协议。
 
-举个例子，Linux 中的 `getaddrinfo` 就是这样一个可用来解析域名的库函数。下面这段代码经过编译运行将得到 `google.com` 的 IP 地址。
+解析器必须能够访问至少一个域名服务器并使用该域名服务器的信息直接响应查询或拿到中间结果向其他域名服务器继续查询。
+
+举个例子，Linux 中的解析程序由一组C库中的系统例程组成，通过 `/etc/resolv.conf` 配置文件为解析程序提供域名服务器的信息，如果配置文件不存在，那么解析器将向运行在本机上的域名服务器的发起查询。下面这段代码中的 `getaddrinfo` 是一个可用来解析域名的库函数，将其编译运行，将打印出`google.com` 的 IP 地址。
 ```c++
 #include <stdio.h>
 #include <sys/types.h>
@@ -138,16 +140,7 @@ int main(void) {
 ```
 更多关于 `getaddrinfo` 可见 [Linux Programmer's Manual - GETADDRINFO(3)](http://man7.org/linux/man-pages/man3/getaddrinfo.3.html)。
 
-解析器包含三个主要功能：
-* 将主机名映射为主机地址（域名解析）
-* 将主机地址映射为主机名（反向解析）
-* 常规查询（从 DNS 查询任意信息）
-
 当解析器完成某个请求后，会将收到的结果缓存起来，这样下一次收到同样的请求时，可以直接从本地缓存返回结果，以提高响应速度。当本地缓存中没有结果或者缓存失效时，解析器才会向外部 DNS 服务器发起请求。
-
-我们在上一节提到的本地 DNS 服务器（127.0.0.1）实际上就是一个本地 DNS 解析器，基本上所有的操作系统都有提供 DNS 解析服务。
-在本机不具备提供 DNS 解析服务（或者本地 DNS 解析不理想，速度慢）的情况下，我们也可以使用远程 DNS 解析器，现在也有一些公开的免费的 DNS 解析服务，比如 Google 的 `8.8.8.8` 和 `8.8.4.4` 还有 [Cloudflare](https://blog.cloudflare.com/dns-resolver-1-1-1-1/) 的 `1.1.1.1`（Cloudflare 这篇 blog 里还提到了一个好可爱的网站 - [How DNS Works](https://howdns.works/，以漫画形式介绍 DNS，生动明了)。
-
 
 ### DNS缓存
 缓存是必要的，TTL是服务于缓存的。
@@ -157,6 +150,12 @@ int main(void) {
 
 当缓存记录遇上权威记录，毫无疑问，弃缓存而选权威。
 
+---
+## 彩蛋
+最后，安利一个很可爱的网站，[How DNS Works](https://howdns.works/)，以漫画的形式生动形象地介绍了什么是DNS，超级萌！:D
+
+
+<!--
 ### DNS基于UDP
 DNS采用UDP作为传输层协议，DNS消息通过UDP数据包发送，格式简单，只有查询和响应。
 为了应对服务器关闭或者丢包的情况，如果在很短的时间内没有响应返回，则DNS客户端必须重复查询请求；如果重复一定次数后仍然失败，则尝试域内另一台域名服务器。
@@ -172,6 +171,7 @@ DNS采用UDP作为传输层协议，DNS消息通过UDP数据包发送，格式�
 * [DNS Root Servers - What are they and Are They Really Only 13?](https://securitytrails.com/blog/dns-root-servers)
 * [RFC 1034 - DOMAIN NAMES - CONCEPTS AND FACILITIES](https://tools.ietf.org/html/rfc1034)
 * [RFC 1035 - DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION](https://tools.ietf.org/html/rfc1035)
+* [What is DNS](https://ns1.com/resources/what-is-dns)
 * [What does getaddrinfo do](https://jameshfisher.com/2018/02/03/what-does-getaddrinfo-do/)
 
   [1]:/uploads/images/domain-name-space.jpg
