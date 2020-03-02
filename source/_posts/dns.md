@@ -24,9 +24,9 @@ DNS (Domain Name System) 域名系统，本质上 DNS 定义了一种层次化�
 其主要用途就是将**主机名映射成 IP 地址**。
 
 DNS主要由三大部分组成：
-* The Domain Name Space and Resource Records - 域名空间和资源记录
-* Name server - 域名服务器
-* Resolver - 解析器
+* **The Domain Name Space and Resource Records - 域名空间和资源记录**
+* **Name server - 域名服务器**
+* **Resolver - 解析器**
 
 ---
 ## 域名空间与资源记录
@@ -111,19 +111,51 @@ DNS 域名空间可以表示为一棵树，从根节点开始，依次是顶级�
     * 对于服务器来说，非递归查询是最简单的模式，因为它只需要返回本地有的信息就可以了。
     * 所有的域名服务器都要实现非递归查询。
 * **递归查询** - 主机发送查询请求给本地 DNS 服务器后，由本地 DNS 服务器代替该主机处理域名解析工作，直到返回它所需的结果，这个结果是**完整结果**（error or the answer）。这个机制被称为递归查询。
-    * 对于客户端来说，递归查询是最简单的模式，在这种模式下服务器扮演了解析器的角色返回最终结果给客户端，客户端不用管中间结果。
-
 
 ---
 ## 解析器
-TODO
+到目前为止，我们提到域名解析都是以主机为单位，而实际上真正发起 DNS 查询的应该是运行在主机上的应用程序（比如Email, FTP, TELNET）。那么，应用程序究竟如何向域名服务器发起请求呢？这就需要依赖 DNS 的第三大组件 —— **解析器 (Resolver)**。
+解析器一般以子程序 (Subroutine) 或系统调用 (System call) 的形式作为接口给应用程序调用，应用程序传参给解析器，解析器返回结果。
 
-<!--
+举个例子，Linux 中的 `getaddrinfo` 就是这样一个可用来解析域名的库函数。下面这段代码经过编译运行将得到 `google.com` 的 IP 地址。
+```c++
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+int main(void) {
+  struct addrinfo* addr;
+  int result = getaddrinfo("google.com", NULL, NULL, &addr);
+  if (result != 0) {
+    printf(stderr, "getaddrinfo: %s\n", gai_strerror(result));
+    return 1;
+  }
+  struct sockaddr_in* internet_addr = (struct sockaddr_in*) addr->ai_addr;
+  printf("google.com is at: %s\n", inet_ntoa(internet_addr->sin_addr));
+  return 0;
+}
+```
+更多关于 `getaddrinfo` 可见 [Linux Programmer's Manual - GETADDRINFO(3)](http://man7.org/linux/man-pages/man3/getaddrinfo.3.html)。
+
+解析器包含三个主要功能：
+* 将主机名映射为主机地址（域名解析）
+* 将主机地址映射为主机名（反向解析）
+* 常规查询（从 DNS 查询任意信息）
+
+当解析器完成某个请求后，会将收到的结果缓存起来，这样下一次收到同样的请求时，可以直接从本地缓存返回结果，以提高响应速度。当本地缓存中没有结果或者缓存失效时，解析器才会向外部 DNS 服务器发起请求。
+
+我们在上一节提到的本地 DNS 服务器（127.0.0.1）实际上就是一个本地 DNS 解析器，基本上所有的操作系统都有提供 DNS 解析服务。
+在本机不具备提供 DNS 解析服务（或者本地 DNS 解析不理想，速度慢）的情况下，我们也可以使用远程 DNS 解析器，现在也有一些公开的免费的 DNS 解析服务，比如 Google 的 `8.8.8.8` 和 `8.8.4.4` 还有 [Cloudflare](https://blog.cloudflare.com/dns-resolver-1-1-1-1/) 的 `1.1.1.1`（Cloudflare 这篇 blog 里还提到了一个好可爱的网站 - [How DNS Works](https://howdns.works/，以漫画形式介绍 DNS，生动明了)。
+
+
 ### DNS缓存
 缓存是必要的，TTL是服务于缓存的。
 
 **Authoritative Record 权威记录** - 由管理该记录的权威部门提供，因此总是正确的。
 **Cached Record 缓存记录** - 有可能是过时的。
+
+当缓存记录遇上权威记录，毫无疑问，弃缓存而选权威。
 
 ### DNS基于UDP
 DNS采用UDP作为传输层协议，DNS消息通过UDP数据包发送，格式简单，只有查询和响应。
@@ -140,6 +172,7 @@ DNS采用UDP作为传输层协议，DNS消息通过UDP数据包发送，格式�
 * [DNS Root Servers - What are they and Are They Really Only 13?](https://securitytrails.com/blog/dns-root-servers)
 * [RFC 1034 - DOMAIN NAMES - CONCEPTS AND FACILITIES](https://tools.ietf.org/html/rfc1034)
 * [RFC 1035 - DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION](https://tools.ietf.org/html/rfc1035)
+* [What does getaddrinfo do](https://jameshfisher.com/2018/02/03/what-does-getaddrinfo-do/)
 
   [1]:/uploads/images/domain-name-space.jpg
   [2]:/uploads/images/dns-root-server.png
