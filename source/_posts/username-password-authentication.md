@@ -2,7 +2,9 @@
 title: Web认证那些事儿（二）用户名密码认证
 date: 2018-10-18 20:58:43
 categories: 技术笔记
-tags: Authentication
+tags: 
+- 网络安全
+- 认证与授权
 ---
 
 我们就从用户名密码认证说起。
