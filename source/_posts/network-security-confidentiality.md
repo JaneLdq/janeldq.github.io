@@ -1,5 +1,5 @@
 ---
-title: 浅谈网络安全（一）- 保密性与加密算法
+title: 浅谈网络安全（一）- 保密性与加密机制
 date: 2020-04-07 10:48:44
 categories: 技术笔记
 tags:
@@ -75,13 +75,73 @@ l d
 
 根据密钥的类型，我们可以将现代加密算法分为两大类：**对称密钥加密**和**非对称（公开）密钥加密**，我们将在下文依次介绍。
 
-// TODO 写了这么多居然还没有进入正题...
+---
+# 对称密钥加密
+对称密钥加密是指**加密和解密使用相同的密钥**。
+对称密钥加密主可分为两类：
+* **分组密码 (block cipher)** ，被广泛应用在多个 Internet 安全协议中，比如 PGP (用于 e-mail)，SSL (用于 TCP )，IPsec (用于网络层)
+* **流密码 (stream cipher)**，应用在无线局域网
+
+## 分组密码
+分组密码**将一段长度为 n 位的明文与长度为 k 位的密钥作为输入进行加密，明文被分割为长度为 k 位的块 (block) 被加密为长度同为 k 位的密文，最终输出长度为 n 位的密文**。
+
+那么，如何实现分组密码呢？
+
+一种最容易想到的方式就是建立一个映射表，假设块大小为 k 位，我们为每个可能的 k 位明文块映射到一个对应的 k 位密文块。加密和解密双方都拥有一份这个映射表，用来加/解密，映射表一共有 **2<sub>k</sub>!** 个可选排列（全排列）。然而，这种方式在实践中几乎是不可行的，一个 k 位大小的块对应的映射表的大小是 **2<sup>k</sub>** 条记录，无论是存储、查询还是更换都难实现。
+
+所以，现在实际应用的块加密算法大多采用函数来模拟随机排列的映射表。常见的加密算法有[**DES**](https://en.wikipedia.org/wiki/Data_Encryption_Standard) (Data Encryption Standard，太脆弱，现在已经不用了)，[**3DES**](https://en.wikipedia.org/wiki/Triple_DES) (Triple DES)，[**AES**](https://en.wikipedia.org/wiki/Advanced_Encryption_Standard) (Advanced Encryption Standard, 目前最好的选择)等。 
+
+### 密码模式
+由于分组密码的本质是一种单字母置换密码算法（每个字母对应一个二进制串，每个二进制串被映射为一个唯一的替换二进制串），那么当使用相同的明文，相同的密钥作为输入时，总会得到相同的密文，因此较长的明文中的某些特征或者模式 (pattern) 会体现在密文中，这点很容易被破解者利用。
+
+那么，当明文的长度由多个块组成时，要如何应用分组密码加密才能避免上述弱点呢？这个时候，就需要提到**分组密码操作模式(Block cipher mode of operation)**了。
+
+常见的密码模式有如下几种：
+* **ECB (Electronic codebook)**
+* **CBC (Cipher block chaining)**
+* **CFB (Cipher feedback)**
+* **OFB (Output feedback)**
+* **CTR (Counter)**
+
+一种最基本的思想是在加密过程中引入随机数以消除重复模式，不过各个密码模式在这里就不详细介绍了，详情请戳 [Block cipher mode of operations - Wiki](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation)。（先挖个坑，以后有时间可能再单独开篇笔记写吧）
+
 
 <!--
-# 对称密钥加密
-
-# 非对称密钥加密
+## 流密码
 -->
+
+密钥如此重要，而使用对称密钥加密通信要求通信双方都拥有相同的密钥，那么问题来了，如何安全地分发密钥呢？如果密钥在分发过程中被盗取，那么由于加密解密用的是相同的密钥，整个加密就失去了意义。
+
+好在，我们还有非对称密钥加密。
+
+--- 
+# 非对称密钥加密
+非对称密钥加密，又称为公开密钥加密，它采用一组**密钥对**来实现加密解密过程，其中一把密钥是公开的，一把是用户私有的，在加密和解密过程中采用不同的密钥进行操作：
+* 当 Alice 给 Bob 发送加密消息时，采用 Bob 的公钥进行加密
+* 当 Bob 收到加密消息时，采用自己的私钥进行解密
+
+> 题外话：Alice 和 Bob 是密码学届非常有名的角色了，我们之后也沿用这一传统，用他们来代表通信双方
+
+$$C=E_{K_{public}}(P), \, D_{K_{private}}(C)=P$$
+
+因为公钥本身就是公开的，因此不用担心密钥在分发过程中被盗取。但是，公开密钥加密算法的应用还需要考虑如下问题：
+* **要能应对选择明文攻击** - 由于用来加密的算法是公开的，入侵者可以猜测某些 Alice 可能发给 Bob 的消息（选择明文）并用 Bob 的公钥加密然后发给 Bob。
+* **要能够认证发消息的人确实是声明者本人** - 关于这一点，见后文**数字签名**。
+
+## RSA
+目前最常用的非对称密钥加密算法是 [**RSA**](https://en.wikipedia.org/wiki/RSA_(cryptosystem%29)。RSA 基于数论的一些原理，具体的我也不是很清楚，就不瞎说了，详情请见相关论文。其**安全性建立在大数分解的难度基础之上**。
+
+---
+
+到此为止，我们介绍了一些密码学的基本知识，和两种加密机制：对称密钥加密和非对称密钥加密。在网络中，这两种加密机制经常组合使用以提供安全的通信，在接下来要介绍报文完整性与数字签名以及身份认证的笔记中我们还会多次见到它们的身影。
+
+---
+
+**参考资料**
+* 计算机网络，第五版
+* Computer Networking: A Top-Down Approach, 7th Edition
+* [Block cipher - Wiki](https://en.wikipedia.org/wiki/Block_cipher)
+* [Block cipher mode of operations - Wiki](https://en.wikipedia.org/wiki/Block_cipher_mode_of_operation)
 
 [1]:/uploads/images/letter_freq.svg
 
