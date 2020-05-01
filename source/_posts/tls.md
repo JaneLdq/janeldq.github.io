@@ -20,7 +20,7 @@ TLS (Transport Layer Security) 实现在 TCP 协议之上，也常被看作是 T
 
 当我们使用 HTTP 协议时，HTTP 请求在 TCP 连接上传输，而是用 HTTPS 协议时，HTTP 请求在 TLS 连接上传输，TLS 连接建立在 TCP 连接之上。三者的关系如下图所示：
 
-// TODO
+![HTTP & TLS & RCP][1]
 
 当 TCP 连接建立之后，TLS 将通过一系列认证、协商流程建立起 TLS 连接。当发送方的 HTTP 请求传给 TLS 后，TLS 对 HTTP 请求加密并传递给下层的 TCP 连接，接收方的 TLS 将 TCP 连接传上来的数据解密得到原始的 HTTP 请求交给上层的 HTTP 处理。
 在这个过程中，TLS 连接的建立意味着通信的双方通过了身份认证，而传输的内容则由 TLS 提供的一系列加密验证机制保证了数据的保密性和完整性。
@@ -42,7 +42,7 @@ TLS 由两个子协议组成：
 TLS 握手协议承担了创建 TLS 会话的重任，成功握手意味着通信双方信任的建立，以及对通信信道安全的保障。这究竟是如何做到的呢？
 下图展示了 TLS 握手的过程，详细解释见下文：
 
-![TLS 1.2 Handshake][1]
+![TLS 1.2 Handshake][2]
 
 1. 客户端向服务器发送 `ClientHello`，请求发起 TLS 会话
     * 在 `ClientHello` 中包含了客户端使用的协议版本 (protocol version)、会话 ID(session id)、客户端支持的加密套件列表（cipher suites)、压缩方法列表 (compression methods) 和一个随机数（random, 实际上是个结构体，包含了一个随机数和时间戳），还可能包含一组扩展 (extensions)。
@@ -58,15 +58,27 @@ TLS 握手协议承担了创建 TLS 会话的重任，成功握手意味着通�
         * 此条消息的内容跟选定的公开密钥算法相关。举个例子，如果是RSA算法，则内容是经过公钥加密的 premaster secret；如果是DH算法，则是用于生成 premaster secret 的信息。
     * `CertificateVerify`，可选项。？
     * `ChangeCipherSpec`，客户端通过发送这条消息告知服务器客户端这边已经准备好使用之前协商好的加密套件加密数据并传输了，与此同时，客户端会将上述协商好的 `Cipher Spec` 从 **pending** Cipher Spec 拷贝到 **current** Cipher Spec 做好准备。
-    * `Finished`，紧随 `ChangeCipherSpec` 之后的 `Finished` 消息是第一条使用协商的加密套件保护的消息，用于确认。
-4. 服务器收到客户端的 `Finished` 消息后，也会准备好使用新的加密套件，并发送一条服务端的 `ChangeCipherSpec` 的消息给客户端，并使用新的加密套件发送服务端的 `Finished` 消息。
-5. 握手过程完成，客户端与服务器之间使用协商好的加密套件开始传输应用层数据。
+    * `Finished`，紧随 `ChangeCipherSpec` 之后的 `Finished` 消息是第一条使用协商的加密套件保护的消息.
+4. 服务器收到客户端的 `ChangeCipherSpec` 消息后，也会准备好使用协商好的加密套件，并发送一条服务端的 `ChangeCipherSpec` 的消息给客户端，并使用新的加密套件发送服务端的 `Finished` 消息。当服务器收到客户端的 `Finished` 消息后，使用对称密钥解密消息，验证 MAC。
+5. 客户端收到服务器的 `Finished` 消息后，也要使用对称密钥解密消息，验证 MAC，如果一切顺利，则握手完成，可以开始发送应用数据。
 
+握手完成后，后续通信的安全性实际上依赖于 premaster secret 的安全性。通过分析上述握手过程，我们可以看到用于生成 master secret 的三个随机数：客户端随机数、服务器随机数和 premaster secret 中虽然前两个存在被窃听的可能，但 premaster secret 是通信双方完成身份验证（建立信任）后加密传输的，理论上这个随机数是不可能被窃听的。因此，只要 premaster secret 不被破解，master secret 便是安全的，整个通信也是安全的。
 
 ---
 ## Change Cipher Spec 协议
 上面提到的 `ChangeCipherSpec` 消息实际上是由一个独立的 Change Cipher Spec 协议定义的，它的数据包中只有一个字节的数据，其值为 1。它的作用就是用于告知对方自己已经切换到之前协商好的加密套件（Cipher Suite）的状态，准备使用之前协商好的加密套件加密数据并传输了。
 
+---
 
+了解了 TLS 握手的大致流程，不难发现，其中应用了大部分我们在《浅谈网络安全》笔记中聊到的很多技术，因此开头我便说，TLS 中包含了诸多“熟面孔”：
+* 服务器与客户端的身份认证利用**数字证书**实现
+* 共享密钥的采用**非对称密钥加密**
+* 应用数据的传输采用**对称密钥加密**
+* 数据的完整性采用 **MAC** 验证
 
-[1]:/uploads/images/tls-2-handshake.svg
+通过综合使用以上技术，TLS 为上层应用协议提供具备数据**保密性**、**完整性**和**身份认证**的安全通信服务。
+
+---
+
+[1]:/uploads/images/http-tls-tcp.svg
+[2]:/uploads/images/tls-2-handshake.svg
