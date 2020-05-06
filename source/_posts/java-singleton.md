@@ -61,7 +61,7 @@ public class LazyFactoryHelper {
 # 多线程中的单例模式
 提到多线程，一定离不开锁机制。提到 Java 中的多线程，一定离不开 `synchronized`、`volatile` 等关键字。
 
-## synchronized
+## **synchronized** 保平安
 一般来说，使用 `synchronized` 关键字修饰方法是最容易想到的实现方式：
 ```java
 public class SyncHelper {
@@ -77,11 +77,11 @@ public class SyncHelper {
 ```
 
 然而，这样实现导致每次请求实例都要执行加锁、释放锁的操作，这会对性能造成不小的影响。而事实上，只有最初请求实例的几个线程可能会遇到竞争的情况，当唯一的实例创建完成后，后续请求实例的线程本可以直接获得实例，这时还要先申请锁实在是没必要。
-为了减少不必要的加锁操作，可以采用 **双重校验锁** 模式。
 
 ---
-## Double-checked Locking Idiom
-**Double-checked Locking**, 即**双重校验锁**，按照如下逻辑实现加锁机制：
+## 双重校验锁升性能
+为了**减少不必要的加锁操作带来的性能开销**，可以采用 **双重校验锁 (Double-checked Locking)** 机制。该机制按照如下逻辑进行同步：
+
 1. 检查实例是否已创建，如果是，则直接返回已有实例
 2. 否则，请求锁
 3. 再次检查实例是否已创建，如果之前拿到锁的线程已经创建好实例，那么直接返回已有实例
@@ -131,9 +131,10 @@ public class DoubleCheckedHelper {
 在上面这段代码中，我们除了引入了 `volatile` 修饰实例变量之外，还在 `getInstance` 方法中引入了一个局部变量，这么做是为了降低访问 `volatile` 变量带来的性能开销。
 
 ---
-## Initialization-on-demand holder Idiom
+## 巧用内部类优化代码
 修正过的双重校验锁机制虽然是线程安全的，但这段代码看起来实在是不怎么优美。那么，有没有更简洁优美的方式呢？
-追求尽善尽美的程序员们开发出了 **Initialization-on-demand holder** 模式，代码如下：
+追求尽善尽美的程序员们开发出了 **Initialization-on-demand holder** 模式，利用私有内部类对代码进行了优化。
+实现如下：
 ```java
 public class InitOnDemandHelper {
     private InitOnDemandHelper() {}
@@ -152,9 +153,8 @@ public class InitOnDemandHelper {
 
 
 ---
-## Enum！
-
-你以为到这里就结束了吗？Naive！
+## Enum 大法好！
+实不相瞒，本小白也是今天才学到如此奇技淫巧，着实没想到枚举类型还能这样用，真是妙啊～
 
 ### 来自反射机制的反击
 
@@ -190,36 +190,48 @@ public class Helper {
     }
 }
 ```
-运行上面这段代码，我们成功地利用反射机制策反了 `Helper` 类，更改了它的构造器的可见性，创建出了第二个实例。
-通过控制台输出的两个实例的 hashCode 明显告知了二者的不同：
+运行这段代码的控制台输出如下：
 ```
 false
 Instance 1: 1639705018
 Instance 2: 1627674070
 ```
+事实证明，我们成功地利用反射机制策反了 `Helper` 类，更改了它的构造器的可见性，创建出了另一个实例。
+
+---
+### 序列化也是个问题
+除了会被反射机制轻易的瓦解，上述单例模式的实现在遇到序列化与反序列化时也一样不堪一击。
+// TODO
 
 ---
 
-我们该如何解决这些问题呢？请回顾本小节的标题：**Enum!** 没错，答案就是**枚举类**！（实不相瞒，本小白也是今天才学到如此奇技淫巧，着实没想到枚举类型还能这样用，妙哉妙哉～）
+那么，有没有应对的方式呢？这不是废话嘛～
+请回顾本小节的标题：**Enum 大法好！**
 
-通过枚举类实现单例模式的代码相当精简，即定义一个只拥有唯一值的枚举类型：
+在 Java 中，声明一个枚举类型实际上定义了一个枚举类，这个类和普通的类一样，可以拥有属性和方法。除此之外，枚举类还有一些特别的属性，其中就包括如下几点：
+* **枚举类的构造器是私有的，且不允许通过反射创建枚举类型实例** —— 完美阻碍通过反射搞破坏这条路
+* **JVM 会保证枚举类的序列化和反序列化的正确执行** —— 省去了自行处理序列化/反序列化的麻烦
+* **JVM 还负责保证枚举类实例是线程安全的** —— 适用于多线程
+
+通过枚举类实现单例模式的代码相当精简，定义一个只拥有唯一值的枚举类就搞定了：
 ```java
 public enum EnumHelper {
     INSTANCE;
     // other methods
 }
 ```
-在 Java 中，声明一个枚举类型实际上定义了一个枚举类，这个类和普通的类一样，可以拥有属性和方法，且**枚举类型实例的创建有 JVM 保证是线程安全的**。除此之外，枚举类还有一些特别的属性，其中之一即**枚举类的构造器是私有的，且不允许通过反射创建枚举类型实例**。
 
-若我们将上面的 `Helper` 类声明为 `enum`，再运行上面的 `main` 方法，控制台会报错：
+若我们将上面的 `Helper` 类声明为 `enum`，再运行上面的 `main` 方法，控制台会报如下错误：
 ```java
 java.lang.IllegalArgumentException: Cannot reflectively create enum objects
 	at java.lang.reflect.Constructor.newInstance(Constructor.java:417)
 ```
 
-// TODO
+鉴于枚举类型在实现单例模式中的优秀表现，Joshua Bloch 在 *Effective Java* 一书中也提出了在 Java 中：**"A single-element enum type is often the best way to implement a singleton."** 的观点。
 
 ---
+
+那么，关于 Java 中单例模式实现的讨论到这里就结束啦～
 
 **参考资料**
 * [Double-checked Locking - wiki](https://en.wikipedia.org/wiki/Double-checked_locking#Usage_in_Java)
