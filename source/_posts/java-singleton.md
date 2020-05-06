@@ -77,11 +77,11 @@ public class SyncHelper {
 ```
 
 然而，这样实现导致每次请求实例都要执行加锁、释放锁的操作，这会对性能造成不小的影响。而事实上，只有最初请求实例的几个线程可能会遇到竞争的情况，当唯一的实例创建完成后，后续请求实例的线程本可以直接获得实例，这时还要先申请锁实在是没必要。
-为了减少不必要的加锁操作，可以采用 **双重检查锁定** 模式。
+为了减少不必要的加锁操作，可以采用 **双重校验锁** 模式。
 
 ---
 ## Double-checked Locking Idiom
-**Double-checked Locking**, 即**双重检查锁定**，按照如下逻辑实现加锁机制：
+**Double-checked Locking**, 即**双重校验锁**，按照如下逻辑实现加锁机制：
 1. 检查实例是否已创建，如果是，则直接返回已有实例
 2. 否则，请求锁
 3. 再次检查实例是否已创建，如果之前拿到锁的线程已经创建好实例，那么直接返回已有实例
@@ -105,10 +105,10 @@ public class DoubleCheckedHelper {
 }
 ```
 
-上面这段代码真的没有问题吗？我们要意识到实例的初始化并不是一瞬间完成的事情，考虑如下情况：
-当线程 A 正在初始化实例但尚未完成，这时 `INSTANCE` 已经指向了一块分配好的内存。此时线程 B 调用 `getInstance` 方法，`INSTANCE == null` 这句判断的值为 false，这个尚未完成初始化的“半成品”实例会被返回给线程 B，导致线程 B 运行出错。
+上面这段代码真的没有问题吗？我们要意识到**实例的初始化并不是一瞬间完成的事情**。考虑如下情况：
+当线程 A 正在初始化实例但尚未完成，这时 `INSTANCE` 已经指向了一块分配好的内存。此时线程 B 调用 `getInstance` 方法，`INSTANCE == null` 这句判断的值为 false，这个尚未完成初始化的“半成品”实例引用会被返回给线程 B，导致线程 B 运行出错。
 
-因此，上面这个版本的双重检查锁定模式是有问题的。如何修正呢？很简单，引入 `volatile` 关键字。这里用到了 `volatile` 提供的 **happens-before** 保证。（不熟悉 `volatile`？，请移步各大搜索引擎～）
+因此，上面这个版本的双重校验锁模式是有问题的。如何修正呢？很简单，引入 `volatile` 关键字。这里用到了 `volatile` 提供的 **happens-before** 保证。（不熟悉 `volatile`？，请移步各大搜索引擎～）
 修正后的版本如下：
 ```java
 public class DoubleCheckedHelper {
@@ -132,8 +132,8 @@ public class DoubleCheckedHelper {
 
 ---
 ## Initialization-on-demand holder Idiom
-修正过的双重检查锁定机制虽然是线程安全的，但这段代码看起来实在是不怎么优美。那么，有没有更简洁优美的方式呢？
-尽善尽美的程序员们开发除了 **Initialization-on-demand holder** 模式，代码如下：
+修正过的双重校验锁机制虽然是线程安全的，但这段代码看起来实在是不怎么优美。那么，有没有更简洁优美的方式呢？
+追求尽善尽美的程序员们开发出了 **Initialization-on-demand holder** 模式，代码如下：
 ```java
 public class InitOnDemandHelper {
     private InitOnDemandHelper() {}
@@ -145,29 +145,81 @@ public class InitOnDemandHelper {
     }
 }
 ```
-**Initialization-on-demand holder** 模式利用了 JVM 的类初始化机制：类
-* 当类加载器加载 `Helper` 类时，由于它没有定义任何静态类变量，`Helper` 类的初始化基本上啥事儿也不用干，**节省了类初始化的开销**；
-* 只有当外部代码调用 `Helper.getInstance()` 方法获取 `Helper` 实例时，`LazyHolder` 才会被初始化，这时才会创建实例，**实现了 Lazy Initialization**；
+**Initialization-on-demand holder** 模式利用了 JVM 的类初始化机制：
+* 当类加载器加载 `InitOnDemandHelper` 类时，由于它没有定义任何静态类变量，`InitOnDemandHelper` 类的初始化基本上啥事儿也不用干，**节省了类初始化的开销**；
+* 只有当外部代码调用 `InitOnDemandHelper.getInstance()` 方法时，`LazyHolder` 才会被初始化，这时才会创建实例，**实现了 Lazy Initialization**；
 * JVM 会保证类的初始化在多线程环境中被正确地加锁、同步，如果有多个线程同时初始化一个类，那么只会有一个线程执行类的初始化方法，其他线程将被阻塞直到类初始化完成。这一 JVM 的硬性要求保证了这一实现是**线程安全**的。
 
-你以为到这里就结束了吗？是时候展现真正的技术了！
 
 ---
 ## Enum！
-所有上面这些基于工厂方法的实现，在对象的序列化和反序列化时会遇到问题。
-怎么办呢？使用 Java 中的 `enum` 类型来实现单例模式可以完美的解决序列化的问题，同时还自带线程安全特性。（实不相瞒，本小白也是今天才学到如此奇技淫巧，着实没想到枚举类型还能这样用，妙哉妙哉～）
-代码相当精简：
+
+你以为到这里就结束了吗？Naive！
+
+### 来自反射机制的反击
+
+上文提到的所有对**单一**实例的限制都依赖于**私有类构造器**筑起的高墙。然而，Java 的**反射**大法可以轻易打破这道壁垒。利用反射机制，我们可以拿到一个类声明的所有构造器，还可以修改构造器的可见性。
+
+举个例子：
+```java
+public class Helper {
+    private static final Helper INSTANCE = new Helper();
+    private Helper() {}
+    public static Helper getInstance() {
+        return INSTANCE;
+    }
+
+    public static void main(String[] args) {
+        Helper instance1 = Helper.getInstance();
+
+        Helper instance2 = null;
+        try {
+            Constructor[] constructors = Helper.class.getDeclaredConstructors();
+            for (Constructor constructor : constructors) {
+                constructor.setAccessible(true);
+                instance2 = (Helper) constructor.newInstance();
+                break;
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(instance1.equals(instance2));
+        System.out.println("Instance 1: " + instance1.hashCode());
+        System.out.println("Instance 2: " + instance2.hashCode()));
+    }
+}
+```
+运行上面这段代码，我们成功地利用反射机制策反了 `Helper` 类，更改了它的构造器的可见性，创建出了第二个实例。
+通过控制台输出的两个实例的 hashCode 明显告知了二者的不同：
+```
+false
+Instance 1: 1639705018
+Instance 2: 1627674070
+```
+
+---
+
+我们该如何解决这些问题呢？请回顾本小节的标题：**Enum!** 没错，答案就是**枚举类**！（实不相瞒，本小白也是今天才学到如此奇技淫巧，着实没想到枚举类型还能这样用，妙哉妙哉～）
+
+通过枚举类实现单例模式的代码相当精简，即定义一个只拥有唯一值的枚举类型：
 ```java
 public enum EnumHelper {
     INSTANCE;
     // other methods
 }
 ```
-如上所示，`EnumHelper.INSTANCE` 就是一个线程安全的单例实例了。
+在 Java 中，声明一个枚举类型实际上定义了一个枚举类，这个类和普通的类一样，可以拥有属性和方法，且**枚举类型实例的创建有 JVM 保证是线程安全的**。除此之外，枚举类还有一些特别的属性，其中之一即**枚举类的构造器是私有的，且不允许通过反射创建枚举类型实例**。
+
+若我们将上面的 `Helper` 类声明为 `enum`，再运行上面的 `main` 方法，控制台会报错：
+```java
+java.lang.IllegalArgumentException: Cannot reflectively create enum objects
+	at java.lang.reflect.Constructor.newInstance(Constructor.java:417)
+```
+
+// TODO
 
 ---
-
-还有一些坑没有提到，明天继续～
 
 **参考资料**
 * [Double-checked Locking - wiki](https://en.wikipedia.org/wiki/Double-checked_locking#Usage_in_Java)
