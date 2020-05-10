@@ -157,7 +157,6 @@ public class InitOnDemandHelper {
 实不相瞒，本小白也是今天才学到如此奇技淫巧，着实没想到枚举类型还能这样用，真是妙啊～
 
 ### 来自反射机制的反击
-
 上文提到的所有对**单一**实例的限制都依赖于**私有类构造器**筑起的高墙。然而，Java 的**反射**大法可以轻易打破这道壁垒。利用反射机制，我们可以拿到一个类声明的所有构造器，还可以修改构造器的可见性。
 
 举个例子：
@@ -201,11 +200,77 @@ Instance 2: 1627674070
 ---
 ### 序列化也是个问题
 除了会被反射机制轻易的瓦解，上述单例模式的实现在遇到序列化与反序列化时也一样不堪一击。
-// TODO
+当我们从某个文件中反序列化一个实例时，Java 中的序列化机制并不受类构造器可见性的限制，也就是说，即使是类构造器是私有的，仍然可以反序化出一个新的实例。
+举个例子：
+```java
+public class Helper implements Serializable {
+
+    private static Helper helper = new Helper();
+
+    private Helper() {}
+
+    public static Helper getInstance() {
+        return helper;
+    }
+
+    public static void main(String[] args) {
+        try {
+            ObjectOutputStream out = new ObjectOutputStream(new FileOutputStream("sample.dat"));
+            Helper h1 = Helper.getInstance();
+            out.writeObject(h1);
+            out.close();
+
+            ObjectInputStream in = new ObjectInputStream(new FileInputStream("sample.dat"));
+            Helper h2 = (Helper) in.readObject();
+            in.close();
+
+            System.out.println(h1.equals(h2));
+            System.out.println("instance 1: " + h1.hashCode());
+            System.out.println("instance 2: " + h2.hashCode());
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+控制台输出如下：
+```
+false
+instance 1: 491044090
+instance 2: 189568618
+```
+在上面这段代码中，`Helper` 类实现了 `Serialzable` 接口。在 `main` 方法中，我们先将实例序列化存到了一个文件中，然后将其反序列化得到了一个新的实例。通过比较两个实例的哈希值也能证明它们确实是两个不同的实例。这明显违反了单例模式唯一实例的要求。
+
+要解决这个问题，我们可以为上面的 `Helper` 类实现一个特殊的方法 `readResolve`。这个方法返回一个 Object 类型，其目的就是用来替换通过反序列化得到的实例。
+更改后的 `Helper` 类如下：
+```java
+public class Helper implements Serializable {
+
+    private static Helper helper = new Helper();
+
+    private Helper() {}
+
+    public static Helper getInstance() {
+        return helper;
+    }
+
+    // 新增 readResolve 方法直接返回现有的 helper 实例
+    protected Object readResolve()
+    {
+        return helper;
+    }
+}
+```
+再运行上面的 `main` 方法，控制台输出如下，实现了单一实例：
+```
+true
+instance 1: 491044090
+instance 2: 491044090
+```
 
 ---
 
-那么，有没有应对的方式呢？这不是废话嘛～
+既然上文提到的诸多实现都面临着这些潜在的威胁，就没有更好的实现单例模式的方法了吗？
 请回顾本小节的标题：**Enum 大法好！**
 
 在 Java 中，声明一个枚举类型实际上定义了一个枚举类，这个类和普通的类一样，可以拥有属性和方法。除此之外，枚举类还有一些特别的属性，其中就包括如下几点：
