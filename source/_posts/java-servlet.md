@@ -31,9 +31,11 @@ public interface Servlet {
     void init(ServletConfig config);
     void service(ServletRequest req, ServletResponse res);
     void destroy();
+    String getServletInfo();
+    ServletConfig getServletConfig();
 }
 ```
-最重要的三个方法也体现了 Servlet 的生命周期：
+最重要的 `init()`, `service()` 和 `destroy()` 三个方法也体现了 Servlet 的生命周期：
 1. **初始化**
 2. **处理请求，返回响应**
 3. **被销毁**
@@ -53,10 +55,47 @@ public interface ServletConfig {
 }
 ```
 
-`ServletContext` 是一个非常重要的接口。
+`ServletContext` 是一个非常重要的接口，Container 提供者负责提供该接口的实现。Servlet 通过 `ServletContext` 与 Servlet Container 通信。通过 `ServletContext`，Servlet 可以记录日志、获取资源的URL、与同一个 context 下的其他 Servlet 共享属性等。
 
-// TODO
-<!--
+下面是 `ServletContext` 声明的部分接口：
+```java
+public interface ServletContext {
+    String getContextPath();
+    // 记日志
+    void log(String msg);
+    // 获取资源
+    URL getResource(String path);
+    InputStream getResourceAsStream(String path);
+    // 获取和配置初始化参数
+    String getInitParameter(String name);
+    boolean setInitParameter(String name, String value);
+    // 获取和配置 Attributes
+    Object getAttribute(String name);
+    void setAttribute(String name, Object object);
+    // 添加和配置 Servlets
+    ServletRegistration.Dynamic addServlet(String servletName, String className);
+    // 添加和配置 Filters
+    FilterRegistration.Dynamic addFilter(String filterName, String className);
+    // 添加和配置 Listeners
+    void addListener(String className);
+    // ...
+}
+```
+Web 服务器上的每一个 Web 应用都关联了一个 `ServletContext` 实例。
+
 ---
 # ServletRequest 与 ServletResponse
--->
+
+`ServletRequest` 包含了客户端请求的所有信息。Servlet Container 在收到客户端请求后，负责将其封装成 `ServletRequest` 实例作为入参传递给 Servlet 的 `service` 方法。特定的协议请求可以继承该接口并扩展提供协议相关的数据。`javax.servlet.http.HttpServletRequest` 就继承了该接口并封装了 HTTP 协议特定的数据，比如 HTTP Header，HTTP Session 等。
+
+`ServletResponse` 定义了一组接口用于 Servlet 响应请求。`ServletResponse` 的创建也有 Servlet Container 负责，并在调用 Servlet 的 `service` 方法时作为入参传入。
+
+下面是一张简单概括 Servlet, ServletConfig 和 ServletContext 关系的 UML 图：
+![Java Servlet][1]
+
+---
+
+**参考资料**
+* Java Servlet Specification 4.0
+
+[1]:/uploads/images/java-servlet.svg
