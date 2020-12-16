@@ -136,4 +136,4 @@ public class BoyerMoore {
 
   [1]: https://en.wikipedia.org/wiki/Robert_S._Boyer
   [2]: https://en.wikipedia.org/wiki/J_Strother_Moore
-  [3]: http://static.zybuluo.com/JaneL/ow8d89znb8ueil1xem7eytw1/BoyermooreExample.png
+  [3]: /uploads/images/boyermoore.png
