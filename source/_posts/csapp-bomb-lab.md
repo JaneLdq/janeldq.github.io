@@ -209,9 +209,86 @@ Addr = 0x402470 + %rax * 8
 非常棒，我们已经解决一半关卡了～再接再厉～
 
 ---
-# Phase 4 - 奇妙的位移
+## Phase 4 - 递归大法好
+phase_4 代码段的前面几行跟 phase_3 一样，由此可得 phase_4 的期望输入也是两个数值。
+下面是 phase_4 的部分代码：
+```
+000000000040100c <phase_4>:
+  ...
+  40102e:	83 7c 24 08 0e       	cmpl   $0xe,0x8(%rsp)
+  401033:	76 05                	jbe    40103a <phase_4+0x2e>
+  401035:	e8 00 04 00 00       	callq  40143a <explode_bomb>
+  40103a:	ba 0e 00 00 00       	mov    $0xe,%edx
+  40103f:	be 00 00 00 00       	mov    $0x0,%esi
+  401044:	8b 7c 24 08          	mov    0x8(%rsp),%edi
+  401048:	e8 81 ff ff ff       	callq  400fce <func4>
+  40104d:	85 c0                	test   %eax,%eax
+  40104f:	75 07                	jne    401058 <phase_4+0x4c>
+  401051:	83 7c 24 0c 00       	cmpl   $0x0,0xc(%rsp)
+  401056:	74 05                	je     40105d <phase_4+0x51>
+  401058:	e8 dd 03 00 00       	callq  40143a <explode_bomb>
+  ...
+```
+40102e - 401033 判断第一个输入的数是否小于 14，如果满足条件则继续，否则引爆炸弹。
+40103a - 401048 准备了如下参数，然后调用 `func4` 函数；
+40104d - 40104f 判断 `func4` 的返回值是否为零，若不为零则引爆炸弹，否则继续判断第二个输入是否为零，若为零，则结束，否则引爆炸弹。
 
+显然，这一关的期望输入格式为 "x 0"，解开这一关的关键在于得到 x 的值，也就是要弄明白 `func4` 的逻辑。
+因为这段有点复杂，我给主要的代码行写了对应的注释，内容如下：
+```
+0000000000400fce <func4>:
+  400fce:	48 83 ec 08          	sub    $0x8,%rsp
+  400fd2:	89 d0                	mov    %edx,%eax            # %eax = %edx               [14, 6]
+  400fd4:	29 f0                	sub    %esi,%eax            # %eax = %eax - %esi        [14, 6]
+  400fd6:	89 c1                	mov    %eax,%ecx            # %ecx = %eax               [14, 6]
+  400fd8:	c1 e9 1f             	shr    $0x1f,%ecx           # %ecx = 0 (逻辑右移31位)
+  400fdb:	01 c8                	add    %ecx,%eax            # %eax = %eax + %ecx        [14, 6]
+  400fdd:	d1 f8                	sar    %eax                 # %eax << 1 算术右移         [7, 3]
+  400fdf:	8d 0c 30             	lea    (%rax,%rsi,1),%ecx   # %ecx = %rax + %rsi        [7, 3]
+  400fe2:	39 f9                	cmp    %edi,%ecx            # flag = %ecx - %edi        [4, 0]
+  400fe4:	7e 0c                	jle    400ff2 <func4+0x24>  # if (flag <= 0) goto <A>
+  400fe6:	8d 51 ff             	lea    -0x1(%rcx),%edx      # %edx = %rcx - 1           [6, -]
+# <B>
+  400fe9:	e8 e0 ff ff ff       	callq  400fce <func4>       # func4(%rdi, %rsi, %rdx)   [(3, 0, 6), -]
+  400fee:	01 c0                	add    %eax,%eax            # %eax = %eax * 2           [0, -]
+  400ff0:	eb 15                	jmp    401007 <func4+0x39>  # goto R
+# <A>
+  400ff2:	b8 00 00 00 00       	mov    $0x0,%eax            # %eax = 0
+  400ff7:	39 f9                	cmp    %edi,%ecx            # flag = %ecx - %edi        [-, 0]
+  400ff9:	7d 0c                	jge    401007 <func4+0x39>  # if (flag >= 0) goto R
+  400ffb:	8d 71 01             	lea    0x1(%rcx),%esi       # %esi = %rcx + 1 
+  400ffe:	e8 cb ff ff ff       	callq  400fce <func4>       # func4(%rdi, %rsi, %rdx)
+  401003:	8d 44 00 01          	lea    0x1(%rax,%rax,1),%eax # %eax =  %rax + %rax + 1
+# <R>
+  401007:	48 83 c4 08          	add    $0x8,%rsp            # return %eax
+  40100b:	c3                   	retq   
+```
+经过分析，我们得知 func4 是一个递归函数，函数参数及其初始值按顺序分别是：
+* %edi - x
+* %esi - 0x0 (0)
+* %edx - 0xe (14)
+下面我们以 x = 3 尝试一下（注释中的中括号代表每次递归时对应寄存器的值）：
+1. 初始函数调用为 `func4(3, 0, 14)`，走到分支 `<B>`， 在 400fe9 触发一次递归调用；
+2. 递归调用 `func4(3, 0, 6)`，走到分支 `<A>`，此时有 %ecx = %edi = 3， flag = 0，函数返回，返回值 %eax = 0
+3. 回到上层调用 `func4(3, 0, 14)` 待执行的下一条指令 400fee 处，计算 %eax += %eax (0)，函数返回，返回值 %eax = 0
+
+由于 func4 返回值为 0，根据上面的分析，可知 **"3 0"** 正是 phase_4 的一个有效密码，就是这么巧！
+不过，正确的密码并不只这一个哦，由于之前的条件要求输入小于 14，大家可以穷举一下 0 - 14 之间的值。
+
+我还想到了一个问题，x 能不能是负数呢？我们回到 40102e - 401033 这三行代码：
+```
+  40102e:	83 7c 24 08 0e       	cmpl   $0xe,0x8(%rsp)
+  401033:	76 05                	jbe    40103a <phase_4+0x2e>
+  401035:	e8 00 04 00 00       	callq  40143a <explode_bomb>
+```
+这里将 x 与 14 比较时候，调用的是 `jbe` 这条指令，即是无符号数的 `<=` 运算，而在 scanf 中是以 "%d" 读取的用户输入，这里读入的是 integer，因此是 32 位，在 0x8(%rsp) 这个地址中存的是 "0x00000000xxxxxxxx" 这样的值。而 40102e 行的 `cmpl` 意味着以 long 的格式比较两个数，显然任何用户输入的负数都会大于 14 ，因此我们可缩小合法范围到 0 - 14 之间。
+
+除了 3， 我还试了下 7，然后非常幸运地得到了第二组正确密码 **"7 0"**～
+
+---
+## Phase 5 - 字符替换
 未完待续...
+
 
 [1]: /uploads/images/bomb_boom.png
 [2]: /uploads/images/bomb_phase1_debug.png
