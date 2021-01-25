@@ -287,10 +287,56 @@ phase_4 代码段的前面几行跟 phase_3 一样，由此可得 phase_4 的期
 
 ---
 ## Phase 5 - 字符替换
-未完待续...
+欢迎来到第五关！来看代码：
+```
+0000000000401062 <phase_5>:
+  401062:	53                   	push   %rbx
+  401063:	48 83 ec 20          	sub    $0x20,%rsp
+  401067:	48 89 fb             	mov    %rdi,%rbx
+  40106a:	64 48 8b 04 25 28 00 	mov    %fs:0x28,%rax
+  401071:	00 00 
+  401073:	48 89 44 24 18       	mov    %rax,0x18(%rsp)
+  401078:	31 c0                	xor    %eax,%eax
+  40107a:	e8 9c 02 00 00       	callq  40131b <string_length>
+  40107f:	83 f8 06             	cmp    $0x6,%eax
+  401082:	74 4e                	je     4010d2 <phase_5+0x70>
+  401084:	e8 b1 03 00 00       	callq  40143a <explode_bomb>
+  ...
+```
+401062 - 401078 这一大段代码主要作用是检查栈有无被破坏，因此实际需要关注的指令只有两行 40107a - 40107f：调用 `<string_length>` 函数，并判断结果是否等于 6，如果不是则引爆炸弹。由此猜测这一关的期待输入是个**长度为 6 的字符串**。
+接下来就是 phase_5 的核心代码段了:
+```
+  401089:	eb 47                	jmp    4010d2 <phase_5+0x70>
+  40108b:	0f b6 0c 03          	movzbl (%rbx,%rax,1),%ecx
+  40108f:	88 0c 24             	mov    %cl,(%rsp)
+  401092:	48 8b 14 24          	mov    (%rsp),%rdx
+  401096:	83 e2 0f             	and    $0xf,%edx
+  401099:	0f b6 92 b0 24 40 00 	movzbl 0x4024b0(%rdx),%edx
+  4010a0:	88 54 04 10          	mov    %dl,0x10(%rsp,%rax,1)
+  4010a4:	48 83 c0 01          	add    $0x1,%rax
+  4010a8:	48 83 f8 06          	cmp    $0x6,%rax
+  4010ac:	75 dd                	jne    40108b <phase_5+0x29>
+  4010ae:	c6 44 24 16 00       	movb   $0x0,0x16(%rsp)
+  4010b3:	be 5e 24 40 00       	mov    $0x40245e,%esi
+  4010b8:	48 8d 7c 24 10       	lea    0x10(%rsp),%rdi
+  4010bd:	e8 76 02 00 00       	callq  401338 <strings_not_equal>
+  4010c2:	85 c0                	test   %eax,%eax
+  4010c4:	74 13                	je     4010d9 <phase_5+0x77>
+  4010c6:	e8 6f 03 00 00       	callq  40143a <explode_bomb>
+  4010cb:	0f 1f 44 00 00       	nopl   0x0(%rax,%rax,1)
+  4010d0:	eb 07                	jmp    4010d9 <phase_5+0x77>
+  4010d2:	b8 00 00 00 00       	mov    $0x0,%eax
+  4010d7:	eb b2                	jmp    40108b <phase_5+0x29>
+```
+一眼扫过去，是不是有两个绝对地址呀？联想到这关跟字符串有关，先试试用 x/s 打印看看能得到什么：
+![Phase 5 expected strings][5]
+一串不完整的字符和一个长度为 6 的单词。结合 4010b3 - 4010c6 这段代码可知解题的关键在于找到一个密钥使得它经过 40108b - 4010ac 这段操作之后会得到 "flyers" 这个单词。
+
+个人非常喜欢解 phase_5 的过程体验，有种间谍搜刮到密码本解密文偷情报的感觉哈哈哈哈～
 
 
 [1]: /uploads/images/bomb_boom.png
 [2]: /uploads/images/bomb_phase1_debug.png
 [3]: /uploads/images/bomb_phase1_debug.png
 [4]: /uploads/images/bomb_phase3_addr.png
+[5]: /uploads/images/bomb_phase5_strings.png
