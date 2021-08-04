@@ -1,0 +1,25 @@
+{
+  "name": "janeldq.github.io",
+  "version": "1.0.0",
+  "description": "Jane's Home",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "css:build": "node-sass scss/style.scss --output-style compressed -o dist css/style.css",
+    "sass:watch": "npm run sass && node-sass scss/style.scss -wo css"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaneLdq/janeldq.github.io.git"
+  },
+  "author": "Jane Liao",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/JaneLdq/janeldq.github.io/issues"
+  },
+  "homepage": "https://github.com/JaneLdq/janeldq.github.io#readme",
+  "devDependencies": {
+    "node-sass": "^6.0.1"
+  },
+  "dependencies": {}
+}
