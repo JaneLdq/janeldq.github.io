@@ -19,7 +19,7 @@
   },
   "homepage": "https://github.com/JaneLdq/janeldq.github.io#readme",
   "devDependencies": {
-    "node-sass": "^6.0.1"
+    "node-sass": "^7.0.0"
   },
   "dependencies": {}
 }
